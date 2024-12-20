@@ -8,6 +8,7 @@ import { Dashboard } from './components/Dashboard';
 import { ProfileSetup } from './components/profile/ProfileSetup';
 import { UserProfileForm } from './components/profile/UserProfileForm';
 import { TransactionListContainer } from './components/TransactionListContainer';
+import { TransactionForm } from './components/TransactionForm';
 import { Reports } from './components/Reports';
 import { BudgetTracker } from './components/BudgetTracker';
 import { CreditCardManagement } from './components/CreditCardManagement';
@@ -75,6 +76,26 @@ function AppRoutes() {
           <ProtectedRoute>
             <Layout>
               <TransactionListContainer />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/transactions/new" element={
+          <ProtectedRoute>
+            <Layout>
+              <div className="max-w-2xl mx-auto">
+                <h1 className="text-2xl font-bold text-gray-900 mb-6">Add New Transaction</h1>
+                <TransactionForm
+                  onSubmit={async (transaction) => {
+                    // Handle submission
+                    try {
+                      await window.location.replace('/transactions');
+                    } catch (error) {
+                      console.error('Error adding transaction:', error);
+                    }
+                  }}
+                  onCancel={() => window.location.replace('/transactions')}
+                />
+              </div>
             </Layout>
           </ProtectedRoute>
         } />
