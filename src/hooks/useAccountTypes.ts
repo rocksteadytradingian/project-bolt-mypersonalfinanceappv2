@@ -11,9 +11,9 @@ const defaultAccountTypes: AccountType[] = [
   'savings',
   'checking',
   'cash',
-  'investment',
-  'credit',
-  'digital'
+  'digital',
+  'joint_account',
+  'dollar_account'
 ];
 
 export const useAccountTypes = create<AccountTypesStore>()(
