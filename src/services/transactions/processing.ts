@@ -2,6 +2,22 @@ import { Transaction } from '../../types/finance';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { dateToString } from '../../types/finance';
 
+const calculateMonthlyFlow = (transactions: Transaction[]): number => {
+  const now = new Date();
+  const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+  
+  return transactions
+    .filter(t => new Date(t.date) >= oneMonthAgo)
+    .reduce((total, t) => {
+      if (t.type === 'income') {
+        return total + t.amount;
+      } else if (t.type === 'expense') {
+        return total - t.amount;
+      }
+      return total;
+    }, 0);
+};
+
 export const processTransaction = async (transaction: Transaction) => {
   const store = useFinanceStore.getState();
 
@@ -33,9 +49,10 @@ export const processTransaction = async (transaction: Transaction) => {
     if (fundSource) {
       const updatedSource = {
         ...fundSource,
-        balance: transaction.type === 'income' 
-          ? fundSource.balance + transaction.amount
-          : fundSource.balance - transaction.amount,
+        currentBalance: transaction.type === 'income' 
+          ? fundSource.currentBalance + transaction.amount
+          : fundSource.currentBalance - transaction.amount,
+        monthlyFlow: calculateMonthlyFlow([...fundSource.transactions, transaction]),
         lastUpdated: dateToString(new Date()),
         updatedAt: dateToString(new Date())
       };

@@ -40,23 +40,23 @@ export const exportTransactions = (transactions: Transaction[]) => {
 
 export const exportFundSources = (sources: FundSource[]) => {
   const headers = [
-    'Name',
-    'Bank',
+    'Bank Name',
     'Account Name',
     'Account Type',
-    'Type',
-    'Balance',
-    'Last Updated'
+    'Current Balance',
+    'Monthly Flow',
+    'Last Updated',
+    'Transactions'
   ];
 
   const data = sources.map(s => [
-    s.name,
     s.bankName,
     s.accountName,
     s.accountType,
-    s.type,
-    formatCurrency(s.balance),
-    s.lastUpdated ? formatDate(s.lastUpdated) : ''
+    formatCurrency(s.currentBalance),
+    formatCurrency(s.monthlyFlow || 0),
+    s.lastUpdated ? formatDate(s.lastUpdated) : '',
+    s.transactions.length.toString()
   ]);
 
   return [headers, ...data];
