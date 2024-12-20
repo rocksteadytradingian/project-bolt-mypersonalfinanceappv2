@@ -54,7 +54,7 @@ export function SavingsAnalysis() {
   }, [transactions]);
 
   const savingsMetrics = useMemo(() => {
-    const totalSavings = fundSources.reduce((sum, source) => sum + source.balance, 0);
+    const totalSavings = fundSources.reduce((sum, source) => sum + source.currentBalance, 0);
     const lastThreeMonths = monthlySavings.slice(-3);
     const averageMonthlySavings = lastThreeMonths.reduce((sum, month) => sum + month.savings, 0) / lastThreeMonths.length;
     const averageSavingsRate = lastThreeMonths.reduce((sum, month) => sum + month.savingsRate, 0) / lastThreeMonths.length;

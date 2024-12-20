@@ -108,7 +108,7 @@ export function LoanDetails() {
               <p className="font-medium">{fundSource.bankName}</p>
               <p className="text-sm text-gray-600">{fundSource.accountName}</p>
             </div>
-            <p className="text-lg font-semibold">{formatCurrency(fundSource.balance)}</p>
+            <p className="text-lg font-semibold">{formatCurrency(fundSource.currentBalance)}</p>
           </div>
         </Card>
       )}
