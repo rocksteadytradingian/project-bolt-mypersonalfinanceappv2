@@ -21,6 +21,16 @@ import { FinancialConsultant } from './components/FinancialConsultant';
 import { Navigation } from './components/Navigation';
 import { auth } from './config/firebase';
 
+// Import insight components
+import { ExpenseAnalysis } from './components/insights/ExpenseAnalysis';
+import { IncomeAnalysis } from './components/insights/IncomeAnalysis';
+import { SpendingHabits } from './components/insights/SpendingHabits';
+import { SavingsAnalysis } from './components/insights/SavingsAnalysis';
+import { DebtAnalysis } from './components/insights/DebtAnalysis';
+import { CreditCardAnalysis } from './components/insights/CreditCardAnalysis';
+import { LoanAnalysis } from './components/insights/LoanAnalysis';
+import { InvestmentAnalysis } from './components/insights/InvestmentAnalysis';
+
 function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -65,6 +75,8 @@ function AppRoutes() {
             </Layout>
           </ProtectedRoute>
         } />
+
+        {/* Profile */}
         <Route path="/profile" element={
           <ProtectedRoute>
             <Layout>
@@ -72,6 +84,8 @@ function AppRoutes() {
             </Layout>
           </ProtectedRoute>
         } />
+
+        {/* Transactions */}
         <Route path="/transactions" element={
           <ProtectedRoute>
             <Layout>
@@ -86,7 +100,6 @@ function AppRoutes() {
                 <h1 className="text-2xl font-bold text-gray-900 mb-6">Add New Transaction</h1>
                 <TransactionForm
                   onSubmit={async (transaction) => {
-                    // Handle submission
                     try {
                       await window.location.replace('/transactions');
                     } catch (error) {
@@ -99,45 +112,26 @@ function AppRoutes() {
             </Layout>
           </ProtectedRoute>
         } />
-        <Route path="/reports" element={
+        <Route path="/transactions/records" element={
           <ProtectedRoute>
             <Layout>
-              <Reports />
+              <TransactionListContainer />
             </Layout>
           </ProtectedRoute>
         } />
-        <Route path="/budget" element={
+        <Route path="/transactions/recurring" element={
+          <ProtectedRoute>
+            <Layout>
+              <RecurringTransactions />
+            </Layout>
+          </ProtectedRoute>
+        } />
+
+        {/* Budget & Planning */}
+        <Route path="/budget/overview" element={
           <ProtectedRoute>
             <Layout>
               <BudgetTracker />
-            </Layout>
-          </ProtectedRoute>
-        } />
-        <Route path="/credit-cards" element={
-          <ProtectedRoute>
-            <Layout>
-              <CreditCardManagement />
-            </Layout>
-          </ProtectedRoute>
-        } />
-        <Route path="/debts" element={
-          <ProtectedRoute>
-            <Layout>
-              <DebtTracker />
-            </Layout>
-          </ProtectedRoute>
-        } />
-        <Route path="/loans" element={
-          <ProtectedRoute>
-            <Layout>
-              <LoanManagement />
-            </Layout>
-          </ProtectedRoute>
-        } />
-        <Route path="/investments" element={
-          <ProtectedRoute>
-            <Layout>
-              <InvestmentManagement />
             </Layout>
           </ProtectedRoute>
         } />
@@ -148,13 +142,68 @@ function AppRoutes() {
             </Layout>
           </ProtectedRoute>
         } />
-        <Route path="/recurring" element={
+
+        {/* Debt & Credit */}
+        <Route path="/debt/overview" element={
           <ProtectedRoute>
             <Layout>
-              <RecurringTransactions />
+              <DebtTracker />
             </Layout>
           </ProtectedRoute>
         } />
+        <Route path="/credit-cards" element={
+          <ProtectedRoute>
+            <Layout>
+              <CreditCardManagement />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/loans" element={
+          <ProtectedRoute>
+            <Layout>
+              <LoanManagement />
+            </Layout>
+          </ProtectedRoute>
+        } />
+
+        {/* Investments */}
+        <Route path="/investments" element={
+          <ProtectedRoute>
+            <Layout>
+              <InvestmentManagement />
+            </Layout>
+          </ProtectedRoute>
+        } />
+
+        {/* Insights & Reports */}
+        <Route path="/insights/overview" element={
+          <ProtectedRoute>
+            <Layout>
+              <div className="space-y-6">
+                <h1 className="text-2xl font-bold text-gray-900">Financial Insights</h1>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <ExpenseAnalysis />
+                  <IncomeAnalysis />
+                  <SpendingHabits />
+                  <SavingsAnalysis />
+                  <DebtAnalysis />
+                  <CreditCardAnalysis />
+                  <LoanAnalysis />
+                  <InvestmentAnalysis />
+                </div>
+              </div>
+            </Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/reports" element={
+          <ProtectedRoute>
+            <Layout>
+              <Reports />
+            </Layout>
+          </ProtectedRoute>
+        } />
+
+        {/* Consultant */}
         <Route path="/consultant" element={
           <ProtectedRoute>
             <Layout>
