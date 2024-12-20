@@ -1,0 +1,15 @@
+{
+  "appId": "com.financetracker.app",
+  "appName": "Finance Tracker",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true,
+    "allowNavigation": ["*"]
+  },
+  "android": {
+    "buildOptions": {
+      "releaseType": "APK"
+    }
+  }
+}

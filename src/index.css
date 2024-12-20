@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-neutral-50 text-neutral-800;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-lg shadow-sm border border-neutral-200;
+  }
+
+  .input {
+    @apply rounded-md border-neutral-300 shadow-sm focus:border-primary focus:ring-primary;
+  }
+
+  .btn-primary {
+    @apply bg-primary text-white hover:bg-primary-dark focus:ring-primary;
+  }
+
+  .btn-secondary {
+    @apply bg-neutral-100 text-neutral-700 hover:bg-neutral-200 focus:ring-neutral-500;
+  }
+
+  .btn-danger {
+    @apply bg-danger text-white hover:bg-danger-dark focus:ring-danger;
+  }
+
+  .nav-link {
+    @apply text-neutral-600 hover:text-primary px-3 py-2 rounded-md transition-colors duration-150;
+  }
+
+  .nav-link-active {
+    @apply text-primary font-medium;
+  }
+}
