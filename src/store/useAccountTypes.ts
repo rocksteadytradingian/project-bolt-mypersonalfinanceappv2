@@ -2,25 +2,21 @@ import { AccountType } from '../types/finance';
 
 export const useAccountTypes = () => {
   const types: AccountType[] = [
-    'checking',
     'savings',
-    'investment',
-    'credit',
-    'loan',
-    'debt',
+    'checking',
     'cash',
-    'digital'
+    'digital',
+    'joint_account',
+    'dollar_account'
   ];
 
   const labels: Record<AccountType, string> = {
-    checking: 'Checking Account',
     savings: 'Savings Account',
-    investment: 'Investment Account',
-    credit: 'Credit Account',
-    loan: 'Loan Account',
-    debt: 'Debt Account',
+    checking: 'Checking Account',
     cash: 'Cash',
-    digital: 'Digital Account'
+    digital: 'Digital Account',
+    joint_account: 'Joint Account',
+    dollar_account: 'Dollar Account'
   };
 
   const getLabel = (type: AccountType): string => {

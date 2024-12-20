@@ -3,14 +3,12 @@ import { CountryCode, CurrencyCode } from '../utils/countries';
 export type Theme = 'light' | 'dark';
 
 export type AccountType = 
-  | 'checking' 
-  | 'savings' 
-  | 'investment' 
-  | 'credit' 
-  | 'loan' 
-  | 'debt'
+  | 'savings'
+  | 'checking'
   | 'cash'
-  | 'digital';
+  | 'digital'
+  | 'joint_account'
+  | 'dollar_account';
 
 export type TransactionType = 'income' | 'expense' | 'debt' | 'investment';
 
@@ -95,12 +93,11 @@ export interface CreditCard extends BaseModel {
 }
 
 export interface FundSource extends BaseModel {
-  name: string;
   bankName: string;
   accountName: string;
-  accountType: string;
-  type: 'checking' | 'savings';
-  balance: number;
+  accountType: string; // Can be custom or from AccountType
+  currentBalance: number;
+  monthlyFlow?: number;
   lastUpdated?: string;
   transactions: Transaction[];
 }

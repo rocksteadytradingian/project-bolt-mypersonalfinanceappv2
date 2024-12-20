@@ -5,14 +5,31 @@ import { useFinanceStore } from '../store/useFinanceStore';
 import { FundSource, dateToString } from '../types/finance';
 import { formatCurrency } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
+import { Transaction, AccountType } from '../types/finance';
+import { useAccountTypes } from '../store/useAccountTypes';
+import { useCustomAccountTypes } from '../store/useCustomAccountTypes';
+
+const calculateMonthlyFlow = (transactions: Transaction[]): number => {
+  const now = new Date();
+  const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+  
+  return transactions
+    .filter(t => new Date(t.date) >= oneMonthAgo)
+    .reduce((total, t) => {
+      if (t.type === 'income') {
+        return total + t.amount;
+      } else if (t.type === 'expense') {
+        return total - t.amount;
+      }
+      return total;
+    }, 0);
+};
 
 interface FundSourceFormData {
-  name: string;
   bankName: string;
   accountName: string;
   accountType: string;
-  type: 'checking' | 'savings';
-  balance: number;
+  currentBalance: number;
 }
 
 export function FundSourceManagement() {
@@ -21,12 +38,10 @@ export function FundSourceManagement() {
   const [isAdding, setIsAdding] = useState(false);
   const [selectedSource, setSelectedSource] = useState<FundSource | null>(null);
   const [formData, setFormData] = useState<FundSourceFormData>({
-    name: '',
     bankName: '',
     accountName: '',
     accountType: '',
-    type: 'checking',
-    balance: 0
+    currentBalance: 0
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,6 +54,7 @@ export function FundSourceManagement() {
       const updatedSource: FundSource = {
         ...selectedSource,
         ...formData,
+        monthlyFlow: calculateMonthlyFlow(selectedSource.transactions),
         lastUpdated: now,
         updatedAt: now
       };
@@ -48,6 +64,7 @@ export function FundSourceManagement() {
         ...formData,
         userId: currentUser.uid,
         transactions: [],
+        monthlyFlow: 0,
         lastUpdated: now,
         createdAt: now,
         updatedAt: now
@@ -58,24 +75,20 @@ export function FundSourceManagement() {
     setIsAdding(false);
     setSelectedSource(null);
     setFormData({
-      name: '',
       bankName: '',
       accountName: '',
       accountType: '',
-      type: 'checking',
-      balance: 0
+      currentBalance: 0
     });
   };
 
   const handleEdit = (source: FundSource) => {
     setSelectedSource(source);
     setFormData({
-      name: source.name,
       bankName: source.bankName,
       accountName: source.accountName,
       accountType: source.accountType,
-      type: source.type,
-      balance: source.balance
+      currentBalance: source.currentBalance
     });
     setIsAdding(true);
   };
@@ -99,70 +112,101 @@ export function FundSourceManagement() {
 
       {isAdding && (
         <Card>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Name</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                required
-              />
-            </div>
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Account Name</label>
+                <input
+                  type="text"
+                  value={formData.accountName}
+                  onChange={(e) => setFormData({ ...formData, accountName: e.target.value })}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  required
+                  placeholder="e.g., Primary Savings"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Bank Name</label>
-              <input
-                type="text"
-                value={formData.bankName}
-                onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Account Name</label>
-              <input
-                type="text"
-                value={formData.accountName}
-                onChange={(e) => setFormData({ ...formData, accountName: e.target.value })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                required
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Bank Name</label>
+                <input
+                  type="text"
+                  value={formData.bankName}
+                  onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  required
+                  placeholder="e.g., Chase Bank"
+                />
+              </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700">Account Type</label>
-              <input
-                type="text"
+              <select
                 value={formData.accountType}
                 onChange={(e) => setFormData({ ...formData, accountType: e.target.value })}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Type</label>
-              <select
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value as 'checking' | 'savings' })}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                required
               >
-                <option value="checking">Checking</option>
-                <option value="savings">Savings</option>
+                <option value="">Select Account Type</option>
+                <optgroup label="Standard Types">
+                  {useAccountTypes().types.map((type) => (
+                    <option key={type} value={type}>
+                      {useAccountTypes().getLabel(type)}
+                    </option>
+                  ))}
+                </optgroup>
+                {useCustomAccountTypes().customTypes.length > 0 && (
+                  <optgroup label="Custom Types">
+                    {useCustomAccountTypes().customTypes.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  placeholder="Add custom type..."
+                  className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const input = e.target as HTMLInputElement;
+                      const value = input.value.trim();
+                      if (value) {
+                        useCustomAccountTypes().addCustomType(value);
+                        setFormData({ ...formData, accountType: value });
+                        input.value = '';
+                      }
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={(e) => {
+                    const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                    const value = input.value.trim();
+                    if (value) {
+                      useCustomAccountTypes().addCustomType(value);
+                      setFormData({ ...formData, accountType: value });
+                      input.value = '';
+                    }
+                  }}
+                >
+                  Add
+                </Button>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Balance</label>
+            <div className="mt-6">
+              <label className="block text-sm font-medium text-gray-700">Current Balance</label>
               <input
                 type="number"
-                value={formData.balance}
-                onChange={(e) => setFormData({ ...formData, balance: parseFloat(e.target.value) })}
+                value={formData.currentBalance}
+                onChange={(e) => setFormData({ ...formData, currentBalance: parseFloat(e.target.value) })}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 required
                 min="0"
@@ -178,12 +222,10 @@ export function FundSourceManagement() {
                   setIsAdding(false);
                   setSelectedSource(null);
                   setFormData({
-                    name: '',
                     bankName: '',
                     accountName: '',
                     accountType: '',
-                    type: 'checking',
-                    balance: 0
+                    currentBalance: 0
                   });
                 }}
               >
@@ -201,11 +243,11 @@ export function FundSourceManagement() {
         {fundSources.map((source) => (
           <Card key={source.id}>
             <div className="p-4">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold">{source.name}</h3>
-                  <p className="text-sm text-gray-500">{source.bankName}</p>
-                </div>
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-lg font-semibold">{source.bankName}: {source.accountName}</h3>
+                <p className="text-sm text-gray-500">{source.accountType}</p>
+              </div>
                 <div className="flex space-x-2">
                   <Button onClick={() => handleEdit(source)} variant="secondary">
                     Edit
@@ -218,27 +260,17 @@ export function FundSourceManagement() {
 
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Account Name:</span>
-                  <span>{source.accountName}</span>
+                  <span className="text-gray-600">Current Balance:</span>
+                  <span>{formatCurrency(source.currentBalance)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Account Type:</span>
-                  <span>{source.accountType}</span>
+                  <span className="text-gray-600">Monthly Flow:</span>
+                  <span>{formatCurrency(source.monthlyFlow || 0)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Type:</span>
-                  <span className="capitalize">{source.type}</span>
+                  <span className="text-gray-600">Transactions:</span>
+                  <span>{source.transactions.length}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Balance:</span>
-                  <span>{formatCurrency(source.balance)}</span>
-                </div>
-                {source.lastUpdated && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Last Updated:</span>
-                    <span>{new Date(source.lastUpdated).toLocaleDateString()}</span>
-                  </div>
-                )}
               </div>
             </div>
           </Card>
