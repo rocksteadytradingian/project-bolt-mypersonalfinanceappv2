@@ -12,7 +12,7 @@ export type AccountType =
   | 'cash'
   | 'digital';
 
-export type TransactionType = 'income' | 'expense' | 'debt';
+export type TransactionType = 'income' | 'expense' | 'debt' | 'investment';
 
 export type PaymentMethod = 'cash' | 'credit_card' | 'debit_card' | 'bank_transfer' | 'check' | 'other';
 
@@ -68,6 +68,7 @@ export interface Transaction extends BaseModel {
   type: TransactionType;
   amount: number;
   date: string;
+  time: string;  // Added time field
   category: string;
   details: string;
   from?: string;
