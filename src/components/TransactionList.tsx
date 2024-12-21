@@ -4,6 +4,7 @@ import { Card } from './ui/Card';
 import { Button } from './ui/Button';
 import { formatCurrency } from '../utils/formatters';
 import { Transaction } from '../types/finance';
+import { useNavigate } from 'react-router-dom';
 
 export interface TransactionListProps {
   transactions: Transaction[];
@@ -13,7 +14,8 @@ export interface TransactionListProps {
 }
 
 export function TransactionList({ transactions: propTransactions, onEdit, onDelete, readOnly = false }: TransactionListProps) {
-  const { transactions: storeTransactions } = useFinanceStore();
+  const { transactions: storeTransactions, fundSources } = useFinanceStore();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -138,6 +140,9 @@ export function TransactionList({ transactions: propTransactions, onEdit, onDele
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Amount
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Fund Source
+                </th>
                 {!readOnly && (
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -168,6 +173,16 @@ export function TransactionList({ transactions: propTransactions, onEdit, onDele
                     <span className={transaction.type === 'income' ? 'text-green-600' : 'text-red-600'}>
                       {transaction.type === 'expense' ? '-' : '+'}{formatCurrency(transaction.amount)}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {transaction.fundSourceId && (
+                      <button
+                        onClick={() => navigate(`/fund-sources/${transaction.fundSourceId}`)}
+                        className="text-blue-600 hover:text-blue-900 underline"
+                      >
+                        {fundSources.find(fs => fs.id === transaction.fundSourceId)?.accountName || 'Unknown Fund Source'}
+                      </button>
+                    )}
                   </td>
                   {!readOnly && (
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
