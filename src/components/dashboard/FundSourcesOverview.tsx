@@ -8,11 +8,11 @@ const COLORS = ['#3B82F6', '#10B981', '#6366F1', '#F59E0B', '#EF4444', '#8B5CF6'
 
 export function FundSourcesOverview() {
   const fundSources = useFinanceStore((state) => state.fundSources);
-  const totalBalance = fundSources.reduce((sum, source) => sum + source.balance, 0);
+  const totalBalance = fundSources.reduce((sum, source) => sum + source.currentBalance, 0);
 
   const data = fundSources.map((source) => ({
     name: `${source.bankName} - ${source.accountName}`,
-    value: source.balance,
+    value: source.currentBalance,
     type: source.accountType,
   }));
 

@@ -11,7 +11,7 @@ export function FundSourceDetails({ source }: FundSourceDetailsProps) {
   return (
     <Card>
       <div className="p-6">
-        <h2 className="text-xl font-semibold mb-4">{source.name}</h2>
+        <h2 className="text-xl font-semibold mb-4">{source.bankName}: {source.accountName}</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-4">
@@ -30,10 +30,6 @@ export function FundSourceDetails({ source }: FundSourceDetailsProps) {
                   <span className="text-gray-600">Account Type:</span>
                   <span>{source.accountType}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Type:</span>
-                  <span className="capitalize">{source.type}</span>
-                </div>
               </div>
             </div>
 
@@ -42,7 +38,11 @@ export function FundSourceDetails({ source }: FundSourceDetailsProps) {
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Current Balance:</span>
-                  <span className="text-xl font-semibold">{formatCurrency(source.balance)}</span>
+                  <span className="text-xl font-semibold">{formatCurrency(source.currentBalance)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Monthly Flow:</span>
+                  <span className="text-xl font-semibold">{formatCurrency(source.monthlyFlow || 0)}</span>
                 </div>
                 {source.lastUpdated && (
                   <div className="flex justify-between">

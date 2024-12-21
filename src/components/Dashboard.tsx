@@ -21,7 +21,7 @@ export function Dashboard() {
   } = useFinanceStore();
 
   // Calculate total balances
-  const totalFundSources = fundSources.reduce((sum, source) => sum + source.balance, 0);
+  const totalFundSources = fundSources.reduce((sum, source) => sum + source.currentBalance, 0);
   const totalCreditCardDebt = creditCards.reduce((sum, card) => sum + card.balance, 0);
   const totalDebts = debts.reduce((sum, debt) => sum + debt.amount, 0);
   const totalLoans = loans.reduce((sum, loan) => sum + loan.currentBalance, 0);
