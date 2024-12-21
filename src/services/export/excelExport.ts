@@ -12,6 +12,22 @@ const formatDate = (date: string) => {
   return new Date(date).toLocaleDateString();
 };
 
+const formatDayOfMonth = (day: number) => {
+  return `${day}${getDaySuffix(day)}`;
+};
+
+const getDaySuffix = (day: number) => {
+  if (day >= 11 && day <= 13) {
+    return 'th';
+  }
+  switch (day % 10) {
+    case 1: return 'st';
+    case 2: return 'nd';
+    case 3: return 'rd';
+    default: return 'th';
+  }
+};
+
 export const exportTransactions = (transactions: Transaction[]) => {
   const headers = [
     'Date',
@@ -80,8 +96,8 @@ export const exportCreditCards = (cards: CreditCard[]) => {
     formatCurrency(c.limit),
     formatCurrency(c.balance),
     `${c.apr}%`,
-    formatDate(c.dueDate),
-    formatDate(c.cutOffDate),
+    formatDayOfMonth(c.dueDate),
+    formatDayOfMonth(c.cutOffDate),
     formatCurrency(c.minimumPayment)
   ]);
 
