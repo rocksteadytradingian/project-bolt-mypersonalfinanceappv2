@@ -86,8 +86,8 @@ export interface CreditCard extends BaseModel {
   limit: number;
   balance: number;
   apr: number;
-  dueDate: string;
-  cutOffDate: string;
+  dueDate: number; // Day of month (1-31)
+  cutOffDate: number; // Day of month (1-31)
   minimumPayment: number;
   transactions: Transaction[];
 }

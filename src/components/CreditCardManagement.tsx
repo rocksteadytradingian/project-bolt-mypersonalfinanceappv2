@@ -17,8 +17,8 @@ export function CreditCardManagement() {
     limit: 0,
     balance: 0,
     apr: 0,
-    dueDate: '',
-    cutOffDate: '',
+    dueDate: 1,
+    cutOffDate: 1,
     minimumPayment: 0
   });
 
@@ -54,8 +54,8 @@ export function CreditCardManagement() {
       limit: 0,
       balance: 0,
       apr: 0,
-      dueDate: '',
-      cutOffDate: '',
+      dueDate: 1,
+      cutOffDate: 1,
       minimumPayment: 0
     });
   };
@@ -94,7 +94,7 @@ export function CreditCardManagement() {
 
       {isAdding && (
         <Card>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4 p-6">
             <div>
               <label className="block text-sm font-medium text-gray-700">Card Name</label>
               <input
@@ -175,25 +175,31 @@ export function CreditCardManagement() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Due Date</label>
-                <input
-                  type="date"
+                <label className="block text-sm font-medium text-gray-700">Due Every</label>
+                <select
                   value={formData.dueDate}
-                  onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, dueDate: parseInt(e.target.value) })}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   required
-                />
+                >
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                    <option key={day} value={day}>{day}</option>
+                  ))}
+                </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">Cut-off Date</label>
-                <input
-                  type="date"
+                <label className="block text-sm font-medium text-gray-700">Cut-off Date Every</label>
+                <select
                   value={formData.cutOffDate}
-                  onChange={(e) => setFormData({ ...formData, cutOffDate: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, cutOffDate: parseInt(e.target.value) })}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   required
-                />
+                >
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                    <option key={day} value={day}>{day}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -210,8 +216,8 @@ export function CreditCardManagement() {
                     limit: 0,
                     balance: 0,
                     apr: 0,
-                    dueDate: '',
-                    cutOffDate: '',
+                    dueDate: 1,
+                    cutOffDate: 1,
                     minimumPayment: 0
                   });
                 }}
@@ -263,8 +269,12 @@ export function CreditCardManagement() {
                   <span>{card.apr}%</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Due Date:</span>
-                  <span>{new Date(card.dueDate).toLocaleDateString()}</span>
+                  <span className="text-gray-600">Due Every:</span>
+                  <span>{card.dueDate}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Cut-off Every:</span>
+                  <span>{card.cutOffDate}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Minimum Payment:</span>
