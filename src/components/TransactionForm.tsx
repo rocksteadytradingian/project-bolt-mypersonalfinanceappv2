@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
-import { Transaction, TransactionType } from '../types/finance';
+import { Transaction, TransactionType, FundSource } from '../types/finance';
 import { TransactionPreview } from './TransactionPreview';
 import { TransactionList } from './TransactionList';
 
@@ -34,7 +34,7 @@ const defaultCategories = [
 ];
 
 export function TransactionForm({ transaction, onSubmit, onCancel }: TransactionFormProps) {
-  const { transactions } = useFinanceStore();
+  const { transactions, fundSources, updateFundSource } = useFinanceStore();
   const [newCategory, setNewCategory] = useState('');
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [previewTransaction, setPreviewTransaction] = useState<Omit<Transaction, 'id'> | null>(null);
@@ -49,6 +49,7 @@ export function TransactionForm({ transaction, onSubmit, onCancel }: Transaction
     time: transaction?.time || currentTime,
     category: transaction?.category || '',
     details: transaction?.details || '',
+    fundSourceId: transaction?.fundSourceId || '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -79,6 +80,10 @@ export function TransactionForm({ transaction, onSubmit, onCancel }: Transaction
 
     if (!formData.time) {
       newErrors.time = 'Time is required';
+    }
+
+    if (formData.type === 'income' && formData.category === 'Salary' && !formData.fundSourceId) {
+      newErrors.fundSource = 'Fund source is required for salary income';
     }
 
     setErrors(newErrors);
@@ -117,6 +122,20 @@ export function TransactionForm({ transaction, onSubmit, onCancel }: Transaction
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
+
+    // Update fund source balance if it's a salary income
+    if (formData.type === 'income' && formData.category === 'Salary' && formData.fundSourceId) {
+      const fundSource = fundSources.find(fs => fs.id === formData.fundSourceId);
+      if (fundSource) {
+        const updatedFundSource: FundSource = {
+          ...fundSource,
+          currentBalance: fundSource.currentBalance + formData.amount,
+          lastUpdated: new Date().toISOString(),
+          transactions: [...fundSource.transactions, { ...newTransaction, id: 'temp-id' }]
+        };
+        updateFundSource(updatedFundSource);
+      }
+    }
 
     onSubmit(newTransaction);
   };
@@ -221,6 +240,26 @@ export function TransactionForm({ transaction, onSubmit, onCancel }: Transaction
             </div>
             {errors.category && <p className="mt-1 text-sm text-red-600">{errors.category}</p>}
           </div>
+
+          {formData.type === 'income' && formData.category === 'Salary' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Fund Source</label>
+              <select
+                value={formData.fundSourceId}
+                onChange={(e) => setFormData({ ...formData, fundSourceId: e.target.value })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                required
+              >
+                <option value="">Select a fund source</option>
+                {fundSources.map((source) => (
+                  <option key={source.id} value={source.id}>
+                    {`${source.bankName} - ${source.accountName} (Current Balance: ${source.currentBalance})`}
+                  </option>
+                ))}
+              </select>
+              {errors.fundSource && <p className="mt-1 text-sm text-red-600">{errors.fundSource}</p>}
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700">Details</label>
