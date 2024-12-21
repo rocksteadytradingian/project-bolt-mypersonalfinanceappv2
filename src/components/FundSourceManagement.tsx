@@ -290,6 +290,14 @@ export function FundSourceManagement() {
                   <span className="text-gray-600">Transactions:</span>
                   <span>{source.transactions.length}</span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Last Transaction:</span>
+                  <span>
+                    {source.transactions.length > 0 
+                      ? new Date(Math.max(...source.transactions.map(t => new Date(t.date).getTime()))).toLocaleDateString()
+                      : 'No transactions'}
+                  </span>
+                </div>
               </div>
             </div>
           </Card>
