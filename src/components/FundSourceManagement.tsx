@@ -5,7 +5,7 @@ import { useFinanceStore } from '../store/useFinanceStore';
 import { FundSource, dateToString } from '../types/finance';
 import { formatCurrency } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
-import { Transaction, AccountType } from '../types/finance';
+import { Transaction } from '../types/finance';
 import { useAccountTypes } from '../store/useAccountTypes';
 import { useCustomAccountTypes } from '../store/useCustomAccountTypes';
 
@@ -43,6 +43,11 @@ export function FundSourceManagement() {
     accountType: '',
     currentBalance: 0
   });
+  const [newCustomType, setNewCustomType] = useState('');
+
+  // Move hooks to component level
+  const accountTypes = useAccountTypes();
+  const customAccountTypes = useCustomAccountTypes();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,6 +104,14 @@ export function FundSourceManagement() {
     }
   };
 
+  const handleAddCustomType = () => {
+    if (newCustomType.trim()) {
+      customAccountTypes.addCustomType(newCustomType.trim());
+      setFormData({ ...formData, accountType: newCustomType.trim() });
+      setNewCustomType('');
+    }
+  };
+
   if (!currentUser) {
     return null;
   }
@@ -149,15 +162,15 @@ export function FundSourceManagement() {
               >
                 <option value="">Select Account Type</option>
                 <optgroup label="Standard Types">
-                  {useAccountTypes().types.map((type) => (
+                  {accountTypes.types.map((type) => (
                     <option key={type} value={type}>
-                      {useAccountTypes().getLabel(type)}
+                      {accountTypes.getLabel(type)}
                     </option>
                   ))}
                 </optgroup>
-                {useCustomAccountTypes().customTypes.length > 0 && (
+                {customAccountTypes.customTypes.length > 0 && (
                   <optgroup label="Custom Types">
-                    {useCustomAccountTypes().customTypes.map((type) => (
+                    {customAccountTypes.customTypes.map((type) => (
                       <option key={type} value={type}>
                         {type}
                       </option>
@@ -165,36 +178,24 @@ export function FundSourceManagement() {
                   </optgroup>
                 )}
               </select>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 mt-2">
                 <input
                   type="text"
+                  value={newCustomType}
+                  onChange={(e) => setNewCustomType(e.target.value)}
                   placeholder="Add custom type..."
                   className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   onKeyPress={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
-                      const input = e.target as HTMLInputElement;
-                      const value = input.value.trim();
-                      if (value) {
-                        useCustomAccountTypes().addCustomType(value);
-                        setFormData({ ...formData, accountType: value });
-                        input.value = '';
-                      }
+                      handleAddCustomType();
                     }
                   }}
                 />
                 <Button
                   type="button"
                   variant="secondary"
-                  onClick={(e) => {
-                    const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-                    const value = input.value.trim();
-                    if (value) {
-                      useCustomAccountTypes().addCustomType(value);
-                      setFormData({ ...formData, accountType: value });
-                      input.value = '';
-                    }
-                  }}
+                  onClick={handleAddCustomType}
                 >
                   Add
                 </Button>
@@ -243,11 +244,11 @@ export function FundSourceManagement() {
         {fundSources.map((source) => (
           <Card key={source.id}>
             <div className="p-4">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h3 className="text-lg font-semibold">{source.bankName}: {source.accountName}</h3>
-                <p className="text-sm text-gray-500">{source.accountType}</p>
-              </div>
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold">{source.bankName}: {source.accountName}</h3>
+                  <p className="text-sm text-gray-500">{source.accountType}</p>
+                </div>
                 <div className="flex space-x-2">
                   <Button onClick={() => handleEdit(source)} variant="secondary">
                     Edit
