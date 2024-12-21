@@ -29,6 +29,7 @@ export const processTransaction = async (transaction: Transaction) => {
         const updatedCard = {
           ...creditCard,
           balance: creditCard.balance + transaction.amount,
+          transactions: [...creditCard.transactions, transaction],
           updatedAt: dateToString(new Date())
         };
         store.updateCreditCard(updatedCard);
@@ -37,6 +38,7 @@ export const processTransaction = async (transaction: Transaction) => {
         const updatedCard = {
           ...creditCard,
           balance: creditCard.balance - transaction.amount,
+          transactions: [...creditCard.transactions, transaction],
           updatedAt: dateToString(new Date())
         };
         store.updateCreditCard(updatedCard);
@@ -47,12 +49,16 @@ export const processTransaction = async (transaction: Transaction) => {
   if (transaction.fundSourceId) {
     const fundSource = store.fundSources.find(source => source.id === transaction.fundSourceId);
     if (fundSource) {
+      // Add transaction to fund source's transactions array
+      const updatedTransactions = [...fundSource.transactions, transaction];
+      
       const updatedSource = {
         ...fundSource,
         currentBalance: transaction.type === 'income' 
           ? fundSource.currentBalance + transaction.amount
           : fundSource.currentBalance - transaction.amount,
-        monthlyFlow: calculateMonthlyFlow([...fundSource.transactions, transaction]),
+        transactions: updatedTransactions,
+        monthlyFlow: calculateMonthlyFlow(updatedTransactions),
         lastUpdated: dateToString(new Date()),
         updatedAt: dateToString(new Date())
       };
@@ -67,6 +73,7 @@ export const processTransaction = async (transaction: Transaction) => {
         ...loan,
         balance: loan.balance - transaction.amount,
         currentBalance: loan.currentBalance - transaction.amount,
+        transactions: [...loan.transactions, transaction],
         updatedAt: dateToString(new Date())
       };
       store.updateLoan(updatedLoan);
@@ -79,9 +86,13 @@ export const processTransaction = async (transaction: Transaction) => {
       const updatedDebt = {
         ...debt,
         balance: debt.balance - transaction.amount,
+        transactions: [...debt.transactions, transaction],
         updatedAt: dateToString(new Date())
       };
       store.updateDebt(updatedDebt);
     }
   }
+
+  // Add transaction to store
+  store.addTransaction(transaction);
 };
