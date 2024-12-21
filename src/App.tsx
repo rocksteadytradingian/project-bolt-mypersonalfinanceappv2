@@ -16,6 +16,7 @@ import { DebtTracker } from './components/DebtTracker';
 import { LoanManagement } from './components/LoanManagement';
 import { InvestmentManagement } from './components/investments/InvestmentManagement';
 import { FundSourceManagement } from './components/FundSourceManagement';
+import { FundSourceTransactions } from './components/fund-sources/FundSourceTransactions';
 import { RecurringTransactions } from './components/RecurringTransactions';
 import { FinancialConsultant } from './components/FinancialConsultant';
 import { Navigation } from './components/Navigation';
@@ -139,6 +140,13 @@ function AppRoutes() {
           <ProtectedRoute>
             <Layout>
               <FundSourceManagement />
+            </Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/fund-sources/:id" element={
+          <ProtectedRoute>
+            <Layout>
+              <FundSourceTransactions />
             </Layout>
           </ProtectedRoute>
         } />

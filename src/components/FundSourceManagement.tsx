@@ -6,6 +6,7 @@ import { FundSource, dateToString } from '../types/finance';
 import { formatCurrency } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
 import { Transaction } from '../types/finance';
+import { useNavigate } from 'react-router-dom';
 import { useAccountTypes } from '../store/useAccountTypes';
 import { useCustomAccountTypes } from '../store/useCustomAccountTypes';
 
@@ -34,6 +35,7 @@ interface FundSourceFormData {
 
 export function FundSourceManagement() {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const { fundSources, addFundSource, updateFundSource, deleteFundSource } = useFinanceStore();
   const [isAdding, setIsAdding] = useState(false);
   const [selectedSource, setSelectedSource] = useState<FundSource | null>(null);
@@ -242,7 +244,11 @@ export function FundSourceManagement() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {fundSources.map((source) => (
-          <Card key={source.id}>
+          <Card 
+            key={source.id} 
+            className="cursor-pointer hover:shadow-lg transition-shadow duration-200"
+            onClick={() => navigate(`/fund-sources/${source.id}`)}
+          >
             <div className="p-4">
               <div className="flex justify-between items-start mb-4">
                 <div>
@@ -250,10 +256,22 @@ export function FundSourceManagement() {
                   <p className="text-sm text-gray-500">{source.accountType}</p>
                 </div>
                 <div className="flex space-x-2">
-                  <Button onClick={() => handleEdit(source)} variant="secondary">
+                  <Button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEdit(source);
+                    }} 
+                    variant="secondary"
+                  >
                     Edit
                   </Button>
-                  <Button onClick={() => handleDelete(source.id)} variant="danger">
+                  <Button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(source.id);
+                    }} 
+                    variant="danger"
+                  >
                     Delete
                   </Button>
                 </div>
