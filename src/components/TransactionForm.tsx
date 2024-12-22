@@ -33,6 +33,15 @@ const defaultCategories = [
   'Gift'
 ];
 
+const incomeCategories = [
+  'Investment', 
+  'Salary', 
+  'Freelance', 
+  'Business', 
+  'Savings', 
+  'Gift'
+];
+
 export function TransactionForm({ transaction, onSubmit, onCancel }: TransactionFormProps) {
   const { transactions, fundSources, updateFundSource } = useFinanceStore();
   const [newCategory, setNewCategory] = useState('');
@@ -82,8 +91,9 @@ export function TransactionForm({ transaction, onSubmit, onCancel }: Transaction
       newErrors.time = 'Time is required';
     }
 
-    if (formData.type === 'income' && formData.category === 'Salary' && !formData.fundSourceId) {
-      newErrors.fundSource = 'Fund source is required for salary income';
+    // Validate fund source for income transactions in specific categories
+    if (formData.type === 'income' && incomeCategories.includes(formData.category) && !formData.fundSourceId) {
+      newErrors.fundSource = 'Fund source is required for this income type';
     }
 
     setErrors(newErrors);
@@ -123,8 +133,8 @@ export function TransactionForm({ transaction, onSubmit, onCancel }: Transaction
       updatedAt: new Date().toISOString(),
     };
 
-    // Update fund source balance if it's a salary income
-    if (formData.type === 'income' && formData.category === 'Salary' && formData.fundSourceId) {
+    // Update fund source balance for income transactions in specific categories
+    if (formData.type === 'income' && incomeCategories.includes(formData.category) && formData.fundSourceId) {
       const fundSource = fundSources.find(fs => fs.id === formData.fundSourceId);
       if (fundSource) {
         const updatedFundSource: FundSource = {
@@ -241,7 +251,7 @@ export function TransactionForm({ transaction, onSubmit, onCancel }: Transaction
             {errors.category && <p className="mt-1 text-sm text-red-600">{errors.category}</p>}
           </div>
 
-          {formData.type === 'income' && formData.category === 'Salary' && (
+          {formData.type === 'income' && incomeCategories.includes(formData.category) && (
             <div>
               <label className="block text-sm font-medium text-gray-700">Fund Source</label>
               <select
@@ -253,7 +263,7 @@ export function TransactionForm({ transaction, onSubmit, onCancel }: Transaction
                 <option value="">Select a fund source</option>
                 {fundSources.map((source) => (
                   <option key={source.id} value={source.id}>
-                    {`${source.bankName} - ${source.accountName} (Current Balance: ${source.currentBalance})`}
+                    {`${source.bankName} - ${source.accountName} (Balance: $${source.currentBalance.toFixed(2)})`}
                   </option>
                 ))}
               </select>
