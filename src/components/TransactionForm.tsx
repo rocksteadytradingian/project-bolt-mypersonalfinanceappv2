@@ -47,7 +47,8 @@ const requiresFundSourceCategories = [
   'Salary', 
   'Freelance', 
   'Business', 
-  'Savings'
+  'Savings',
+  'Gift'
 ];
 
 export function TransactionForm({ transaction, onSubmit, onCancel }: TransactionFormProps) {
