@@ -42,15 +42,6 @@ const incomeCategories = [
   'Gift'
 ];
 
-const requiresFundSourceCategories = [
-  'Investment', 
-  'Salary', 
-  'Freelance', 
-  'Business', 
-  'Savings',
-  'Gift'
-];
-
 export function TransactionForm({ transaction, onSubmit, onCancel }: TransactionFormProps) {
   const { transactions, fundSources, updateFundSource } = useFinanceStore();
   const [newCategory, setNewCategory] = useState('');
@@ -100,13 +91,9 @@ export function TransactionForm({ transaction, onSubmit, onCancel }: Transaction
       newErrors.time = 'Time is required';
     }
 
-    // Validate fund source for specific income categories
-    if (
-      formData.type === 'income' && 
-      requiresFundSourceCategories.includes(formData.category) && 
-      !formData.fundSourceId
-    ) {
-      newErrors.fundSource = 'Fund source is required for this income type';
+    // Validate fund source for ALL income transactions
+    if (formData.type === 'income' && !formData.fundSourceId) {
+      newErrors.fundSource = 'Fund source is required for all income transactions';
     }
 
     setErrors(newErrors);
@@ -146,8 +133,8 @@ export function TransactionForm({ transaction, onSubmit, onCancel }: Transaction
       updatedAt: new Date().toISOString(),
     };
 
-    // Update fund source balance for income transactions in specific categories
-    if (formData.type === 'income' && incomeCategories.includes(formData.category) && formData.fundSourceId) {
+    // Update fund source balance for income transactions
+    if (formData.type === 'income' && formData.fundSourceId) {
       const fundSource = fundSources.find(fs => fs.id === formData.fundSourceId);
       if (fundSource) {
         const updatedFundSource: FundSource = {
@@ -264,10 +251,10 @@ export function TransactionForm({ transaction, onSubmit, onCancel }: Transaction
             {errors.category && <p className="mt-1 text-sm text-red-600">{errors.category}</p>}
           </div>
 
-          {formData.type === 'income' && requiresFundSourceCategories.includes(formData.category) && (
+          {formData.type === 'income' && (
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Select Fund Source for {formData.category} Income
+                Select Fund Source for Income
               </label>
               <select
                 value={formData.fundSourceId}
