@@ -42,6 +42,14 @@ const incomeCategories = [
   'Gift'
 ];
 
+const requiresFundSourceCategories = [
+  'Investment', 
+  'Salary', 
+  'Freelance', 
+  'Business', 
+  'Savings'
+];
+
 export function TransactionForm({ transaction, onSubmit, onCancel }: TransactionFormProps) {
   const { transactions, fundSources, updateFundSource } = useFinanceStore();
   const [newCategory, setNewCategory] = useState('');
@@ -91,8 +99,12 @@ export function TransactionForm({ transaction, onSubmit, onCancel }: Transaction
       newErrors.time = 'Time is required';
     }
 
-    // Validate fund source for income transactions in specific categories
-    if (formData.type === 'income' && incomeCategories.includes(formData.category) && !formData.fundSourceId) {
+    // Validate fund source for specific income categories
+    if (
+      formData.type === 'income' && 
+      requiresFundSourceCategories.includes(formData.category) && 
+      !formData.fundSourceId
+    ) {
       newErrors.fundSource = 'Fund source is required for this income type';
     }
 
@@ -251,9 +263,11 @@ export function TransactionForm({ transaction, onSubmit, onCancel }: Transaction
             {errors.category && <p className="mt-1 text-sm text-red-600">{errors.category}</p>}
           </div>
 
-          {formData.type === 'income' && incomeCategories.includes(formData.category) && (
+          {formData.type === 'income' && requiresFundSourceCategories.includes(formData.category) && (
             <div>
-              <label className="block text-sm font-medium text-gray-700">Fund Source</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Select Fund Source for {formData.category} Income
+              </label>
               <select
                 value={formData.fundSourceId}
                 onChange={(e) => setFormData({ ...formData, fundSourceId: e.target.value })}
