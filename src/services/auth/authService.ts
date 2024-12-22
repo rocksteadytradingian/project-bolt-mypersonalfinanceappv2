@@ -1,18 +1,85 @@
 import { 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword as firebaseCreateUser, 
+  signInWithEmailAndPassword as firebaseSignInWithEmail, 
   signOut as firebaseSignOut,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithPopup as firebaseSignInWithPopup,
   User,
   Auth,
   UserCredential
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, writeBatch } from 'firebase/firestore';
+import { doc, setDoc, getDoc, writeBatch, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
 import { UserProfile } from '../../types/finance';
 import { dateToString } from '../../types/finance';
 import { useFinanceStore } from '../../store/useFinanceStore';
+
+// Enhanced logging utility
+const logAuthError = (context: string, error: any) => {
+  console.error(`[AUTH ERROR - ${context}]`, {
+    message: error.message,
+    code: error.code,
+    timestamp: new Date().toISOString(),
+    userId: error.uid || 'unknown'
+  });
+};
+
+// Profile recovery mechanism
+export const recoverUserProfile = async (userId: string): Promise<UserProfile | null> => {
+  try {
+    const userDoc = await getDoc(doc(db, 'users', userId));
+    
+    if (userDoc.exists()) {
+      const existingProfile = userDoc.data() as UserProfile;
+      
+      // Attempt to recreate financial records if missing
+      const financialDoc = await getDoc(doc(db, 'financial_records', userId));
+      
+      if (!financialDoc.exists()) {
+        await setDoc(doc(db, 'financial_records', userId), {
+          transactions: [],
+          creditCards: [],
+          fundSources: [],
+          loans: [],
+          debts: [],
+          investments: [],
+          budgets: [],
+          recurringTransactions: [],
+          categories: []
+        });
+      }
+      
+      return existingProfile;
+    }
+    
+    return null;
+  } catch (error) {
+    logAuthError('Profile Recovery', error);
+    throw error;
+  }
+};
+
+// Manual profile restoration
+export const manualProfileRestore = async (
+  userId: string, 
+  profileData: Partial<UserProfile>
+): Promise<UserProfile> => {
+  try {
+    const profileRef = doc(db, 'users', userId);
+    
+    // Merge existing profile with provided data
+    await updateDoc(profileRef, {
+      ...profileData,
+      updatedAt: dateToString(new Date())
+    });
+    
+    const updatedProfile = await getDoc(profileRef);
+    return updatedProfile.data() as UserProfile;
+  } catch (error) {
+    logAuthError('Manual Profile Restore', error);
+    throw error;
+  }
+};
 
 const createDefaultProfile = (user: User): UserProfile => ({
   id: user.uid,
@@ -69,7 +136,7 @@ const getUserData = async (userId: string): Promise<{ profile: UserProfile | nul
 
 export const signUp = async (email: string, password: string): Promise<User> => {
   try {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const userCredential = await firebaseCreateUser(auth, email, password);
     const profile = createDefaultProfile(userCredential.user);
     
     await initializeUserData(userCredential.user, profile);
@@ -83,7 +150,7 @@ export const signUp = async (email: string, password: string): Promise<User> => 
 
 export const signIn = async (email: string, password: string): Promise<User> => {
   try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const userCredential = await firebaseSignInWithEmail(auth, email, password);
     const { profile } = await getUserData(userCredential.user.uid);
     
     if (profile) {
@@ -124,7 +191,7 @@ export const signInWithGoogle = async (): Promise<{ user: User; isNewUser: boole
       prompt: 'select_account'
     });
     
-    const result = await signInWithPopup(auth, provider);
+    const result = await firebaseSignInWithPopup(auth, provider);
     const { profile } = await getUserData(result.user.uid);
     
     if (!profile) {
