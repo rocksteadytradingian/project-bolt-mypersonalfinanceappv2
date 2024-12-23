@@ -2,12 +2,14 @@ import React from 'react';
 import { Card } from './ui/Card';
 import { formatCurrency } from '../utils/formatters';
 import { Transaction } from '../types/finance';
+import { useFinanceStore } from '../store/useFinanceStore';
 
 interface TransactionPreviewProps {
   transaction: Transaction;
 }
 
 export function TransactionPreview({ transaction }: TransactionPreviewProps) {
+  const { fundSources } = useFinanceStore();
   const getFormattedDate = (dateString: string) => {
     const date = new Date(dateString);
     return !isNaN(date.getTime()) ? date.toLocaleDateString() : 'Invalid Date';
@@ -59,6 +61,20 @@ export function TransactionPreview({ transaction }: TransactionPreviewProps) {
                 {transaction.paymentMethod.split('_').map(word => 
                   word.charAt(0).toUpperCase() + word.slice(1)
                 ).join(' ')}
+              </span>
+            </div>
+          )}
+
+          {transaction.fundSourceId && (
+            <div className="flex justify-between">
+              <span className="text-gray-600">Fund Source:</span>
+              <span className="font-medium">
+                {(() => {
+                  const fundSource = fundSources.find(fs => fs.id === transaction.fundSourceId);
+                  return fundSource 
+                    ? `${fundSource.bankName} - ${fundSource.accountName}`
+                    : 'Unknown Fund Source';
+                })()}
               </span>
             </div>
           )}
