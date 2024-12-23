@@ -1,5 +1,5 @@
 import { initializeApp, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth, GoogleAuthProvider } from 'firebase/auth';
+import { getAuth, Auth, GoogleAuthProvider, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { getFirestore, Firestore, initializeFirestore, enableMultiTabIndexedDbPersistence } from 'firebase/firestore';
 import { connectFirestoreEmulator } from 'firebase/firestore';
 
@@ -47,9 +47,13 @@ try {
   app = initializeApp(firebaseConfig);
   console.log('Firebase initialized successfully');
 
-  // Get Auth instance
+  // Get Auth instance and configure persistence
   auth = getAuth(app);
-  
+  setPersistence(auth, browserLocalPersistence)
+    .catch((error) => {
+      console.error('Error setting auth persistence:', error);
+    });
+
   // Configure Google Auth Provider
   const googleProvider = new GoogleAuthProvider();
   googleProvider.setCustomParameters({
