@@ -87,13 +87,7 @@ function AppRoutes() {
         } />
 
         {/* Transactions */}
-        <Route path="/transactions" element={
-          <ProtectedRoute>
-            <Layout>
-              <TransactionListContainer />
-            </Layout>
-          </ProtectedRoute>
-        } />
+        <Route path="/transactions" element={<Navigate to="/transactions/records" replace />} />
         <Route path="/transactions/new" element={
           <ProtectedRoute>
             <Layout>
@@ -102,12 +96,12 @@ function AppRoutes() {
                 <TransactionForm
                   onSubmit={async (transaction) => {
                     try {
-                      await window.location.replace('/transactions');
+                      await window.location.replace('/transactions/records');
                     } catch (error) {
                       console.error('Error adding transaction:', error);
                     }
                   }}
-                  onCancel={() => window.location.replace('/transactions')}
+                  onCancel={() => window.location.replace('/transactions/records')}
                 />
               </div>
             </Layout>
