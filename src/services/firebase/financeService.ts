@@ -62,7 +62,31 @@ export const updateUserFinancialData = async (
 ) => {
   try {
     const docRef = doc(db, `financial_records/${userId}`);
-    await setDoc(docRef, { [collection]: data }, { merge: true });
+    const docSnap = await getDoc(docRef);
+    
+    // Get existing data or create initial structure
+    const existingData = docSnap.exists() 
+      ? docSnap.data() as UserFinancialData 
+      : {
+          transactions: [],
+          creditCards: [],
+          fundSources: [],
+          loans: [],
+          debts: [],
+          investments: [],
+          budgets: [],
+          recurringTransactions: [],
+          categories: []
+        };
+
+    // Update only the specified collection while preserving others
+    const updatedData = {
+      ...existingData,
+      [collection]: data
+    };
+
+    // Write back the complete data
+    await setDoc(docRef, updatedData);
   } catch (error) {
     console.error('Error updating user financial data:', error);
     throw error;
@@ -72,12 +96,13 @@ export const updateUserFinancialData = async (
 // Helper function to sync store with Firebase data
 export const syncFinancialData = async (userId: string) => {
   try {
-    const data = await getUserFinancialData(userId);
+    const docRef = doc(db, `financial_records/${userId}`);
+    const docSnap = await getDoc(docRef);
     const store = useFinanceStore.getState();
 
-    if (data) {
+    if (docSnap.exists()) {
+      const data = docSnap.data() as UserFinancialData;
       // Update store with Firebase data
-      // Use a single state update for better performance
       store.setFinancialData({
         transactions: data.transactions || [],
         creditCards: data.creditCards || [],
@@ -90,8 +115,8 @@ export const syncFinancialData = async (userId: string) => {
         categories: data.categories || []
       });
     } else {
-      // If no data exists, reset store to empty state
-      store.setFinancialData({
+      // If document doesn't exist, create it with initial data
+      const initialData: UserFinancialData = {
         transactions: [],
         creditCards: [],
         fundSources: [],
@@ -101,7 +126,9 @@ export const syncFinancialData = async (userId: string) => {
         budgets: [],
         recurringTransactions: [],
         categories: []
-      });
+      };
+      await setDoc(docRef, initialData);
+      store.setFinancialData(initialData);
     }
   } catch (error) {
     console.error('Error syncing financial data:', error);
