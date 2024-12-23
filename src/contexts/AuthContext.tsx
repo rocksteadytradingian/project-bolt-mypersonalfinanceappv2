@@ -3,7 +3,8 @@ import { User } from 'firebase/auth';
 import { doc, writeBatch } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import { getUserProfile, recoverUserProfile } from '../services/auth/authService';
-import { UserProfile } from '../types/finance';
+import { UserProfile, Theme } from '../types/finance';
+import { CountryCode, CurrencyCode } from '../utils/countries';
 import { syncFinancialData, clearFinancialData } from '../services/firebase/financeService';
 import { useFinanceStore } from '../store/useFinanceStore';
 
@@ -33,58 +34,111 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Separate function to load user data
   const loadUserData = useCallback(async (user: User) => {
     try {
-      let profile = await getUserProfile(user.uid);
-      
-      // If profile is not found, create a new one using user's Google data
+      // Try to get existing profile with retry mechanism
+      let profile = null;
+      let retryCount = 0;
+      const maxRetries = 3;
+
+      while (!profile && retryCount < maxRetries) {
+        try {
+          profile = await getUserProfile(user.uid);
+          if (!profile) {
+            // Try to recover profile if not found
+            profile = await recoverUserProfile(user.uid);
+          }
+          retryCount++;
+          if (!profile) {
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+          }
+        } catch (error) {
+          console.error(`Attempt ${retryCount + 1} failed:`, error);
+          retryCount++;
+          if (retryCount < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+      }
+
+      // If still no profile after retries, create new one
       if (!profile) {
-        console.log('Profile not found, creating new profile from Google data...');
-        profile = {
+        console.log('Creating new profile from Google data...');
+        const newProfile: UserProfile = {
           id: user.uid,
           userId: user.uid,
           name: user.displayName || '',
           email: user.email || '',
-          country: 'PH',
-          currency: 'PHP',
-          theme: 'light',
+          country: 'PH' as CountryCode,
+          currency: 'PHP' as CurrencyCode,
+          theme: 'light' as Theme,
           notificationsEnabled: true,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           ...(user.photoURL && { photoUrl: user.photoURL })
         };
-        
-        // Initialize user data in Firestore
-        const batch = writeBatch(db);
-        
-        // Set profile document
-        const profileRef = doc(db, 'users', user.uid);
-        batch.set(profileRef, profile);
+        profile = newProfile;
 
-        // Set financial records document
-        const financialRef = doc(db, 'financial_records', user.uid);
-        batch.set(financialRef, {
-          transactions: [],
-          creditCards: [],
-          fundSources: [],
-          loans: [],
-          debts: [],
-          investments: [],
-          budgets: [],
-          recurringTransactions: [],
-          categories: []
-        });
+        // Initialize user data in Firestore with retry mechanism
+        let batchCommitted = false;
+        retryCount = 0;
 
-        // Commit the batch
-        await batch.commit();
+        while (!batchCommitted && retryCount < maxRetries) {
+          try {
+            const batch = writeBatch(db);
+            const profileRef = doc(db, 'users', user.uid);
+            const financialRef = doc(db, 'financial_records', user.uid);
+
+            batch.set(profileRef, profile);
+            batch.set(financialRef, {
+              transactions: [],
+              creditCards: [],
+              fundSources: [],
+              loans: [],
+              debts: [],
+              investments: [],
+              budgets: [],
+              recurringTransactions: [],
+              categories: []
+            });
+
+            await batch.commit();
+            batchCommitted = true;
+          } catch (error) {
+            console.error(`Batch commit attempt ${retryCount + 1} failed:`, error);
+            retryCount++;
+            if (retryCount < maxRetries) {
+              await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+          }
+        }
+
+        if (!batchCommitted) {
+          throw new Error('Failed to initialize user data after multiple attempts');
+        }
       }
-      
+
       setUserProfile(profile);
       setStoreUserProfile(profile);
-      
-      // Load financial data in the background
-      await syncFinancialData(user.uid).catch(error => {
-        console.error('Error syncing financial data:', error);
-        // Even if sync fails, keep the profile loaded
-      });
+
+      // Load financial data with retry mechanism
+      retryCount = 0;
+      let financialDataLoaded = false;
+
+      while (!financialDataLoaded && retryCount < maxRetries) {
+        try {
+          await syncFinancialData(user.uid);
+          financialDataLoaded = true;
+        } catch (error) {
+          console.error(`Financial data sync attempt ${retryCount + 1} failed:`, error);
+          retryCount++;
+          if (retryCount < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+      }
+
+      if (!financialDataLoaded) {
+        console.error('Failed to load financial data after multiple attempts');
+      }
     } catch (error) {
       console.error('Error loading user data:', error);
       // Reset user profile on error
