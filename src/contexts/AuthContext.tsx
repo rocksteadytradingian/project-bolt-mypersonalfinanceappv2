@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User } from 'firebase/auth';
 import { auth } from '../config/firebase';
-import { getUserProfile } from '../services/auth/authService';
+import { getUserProfile, recoverUserProfile } from '../services/auth/authService';
 import { UserProfile } from '../types/finance';
 import { syncFinancialData, clearFinancialData } from '../services/firebase/financeService';
 import { useFinanceStore } from '../store/useFinanceStore';
@@ -32,18 +32,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Separate function to load user data
   const loadUserData = useCallback(async (user: User) => {
     try {
-      const profile = await getUserProfile(user.uid);
+      let profile = await getUserProfile(user.uid);
+      
+      // If profile is not found, attempt recovery
+      if (!profile) {
+        console.log('Profile not found, attempting recovery...');
+        profile = await recoverUserProfile(user.uid);
+      }
       
       if (profile) {
         setUserProfile(profile);
         setStoreUserProfile(profile);
         
         // Load financial data in the background
-        syncFinancialData(user.uid).catch(console.error);
+        await syncFinancialData(user.uid).catch(error => {
+          console.error('Error syncing financial data:', error);
+          // Even if sync fails, keep the profile loaded
+        });
       } else {
-        // Clear profile if none exists
+        // Only clear profile if recovery also failed
         setUserProfile(null);
         setStoreUserProfile(null);
+        console.error('Profile recovery failed for user:', user.uid);
       }
     } catch (error) {
       console.error('Error loading user data:', error);
