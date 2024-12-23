@@ -85,9 +85,7 @@ const syncWithFirebase = async (userId: string | undefined, collection: keyof Fi
   }
 };
 
-export const useFinanceStore = create<FinanceStore>()(
-  persist(
-    (set, get) => ({
+export const useFinanceStore = create<FinanceStore>()((set, get) => ({
       userProfile: null,
       transactions: [],
       creditCards: [],
@@ -295,21 +293,4 @@ export const useFinanceStore = create<FinanceStore>()(
         syncWithFirebase(state.userProfile?.id, 'categories', newCategories);
         return { categories: newCategories };
       })
-    }),
-    {
-      name: 'finance-store',
-      partialize: (state) => ({
-        userProfile: state.userProfile,
-        transactions: state.transactions,
-        creditCards: state.creditCards,
-        fundSources: state.fundSources,
-        loans: state.loans,
-        debts: state.debts,
-        investments: state.investments,
-        budgets: state.budgets,
-        recurringTransactions: state.recurringTransactions,
-        categories: state.categories
-      })
-    }
-  )
-);
+}));

@@ -25,28 +25,30 @@ interface UserFinancialData {
   categories: Category[];
 }
 
-// Cache for financial data
-const financialDataCache = new Map<string, UserFinancialData>();
-
 export const getUserFinancialData = async (userId: string): Promise<UserFinancialData | null> => {
   try {
-    // Check cache first
-    const cachedData = financialDataCache.get(userId);
-    if (cachedData) {
-      return cachedData;
-    }
-
     const docRef = doc(db, `financial_records/${userId}`);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
-      const data = docSnap.data() as UserFinancialData;
-      // Update cache
-      financialDataCache.set(userId, data);
-      return data;
+      return docSnap.data() as UserFinancialData;
     }
 
-    return null;
+    // If no data exists, create initial structure
+    const initialData: UserFinancialData = {
+      transactions: [],
+      creditCards: [],
+      fundSources: [],
+      loans: [],
+      debts: [],
+      investments: [],
+      budgets: [],
+      recurringTransactions: [],
+      categories: []
+    };
+
+    await setDoc(docRef, initialData);
+    return initialData;
   } catch (error) {
     console.error('Error getting user financial data:', error);
     throw error;
@@ -61,13 +63,6 @@ export const updateUserFinancialData = async (
   try {
     const docRef = doc(db, `financial_records/${userId}`);
     await setDoc(docRef, { [collection]: data }, { merge: true });
-    
-    // Update cache
-    const cachedData = financialDataCache.get(userId);
-    if (cachedData) {
-      cachedData[collection] = data;
-      financialDataCache.set(userId, cachedData);
-    }
   } catch (error) {
     console.error('Error updating user financial data:', error);
     throw error;

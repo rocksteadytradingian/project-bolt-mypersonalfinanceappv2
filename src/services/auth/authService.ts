@@ -192,14 +192,26 @@ export const signInWithGoogle = async (): Promise<{ user: User; isNewUser: boole
     });
     
     const result = await firebaseSignInWithPopup(auth, provider);
-    const { profile } = await getUserData(result.user.uid);
+    const userDoc = await getDoc(doc(db, 'users', result.user.uid));
     
-    if (!profile) {
+    if (!userDoc.exists()) {
+      // Create new profile
       const newProfile = createDefaultProfile(result.user);
       await initializeUserData(result.user, newProfile);
       return { user: result.user, isNewUser: true };
     } else {
-      useFinanceStore.getState().setUserProfile(profile);
+      // Update existing profile with latest Google data
+      const existingProfile = userDoc.data() as UserProfile;
+      const updatedProfile = {
+        ...existingProfile,
+        name: result.user.displayName || existingProfile.name,
+        email: result.user.email || existingProfile.email,
+        photoUrl: result.user.photoURL || existingProfile.photoUrl,
+        updatedAt: new Date().toISOString()
+      };
+      
+      await setDoc(doc(db, 'users', result.user.uid), updatedProfile, { merge: true });
+      useFinanceStore.getState().setUserProfile(updatedProfile);
       return { user: result.user, isNewUser: false };
     }
   } catch (error: any) {
