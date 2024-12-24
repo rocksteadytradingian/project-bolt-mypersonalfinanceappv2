@@ -39,7 +39,7 @@ export const useTransactionProcessing = () => {
     setError(null);
 
     try {
-      await updateTransaction(transaction.id, transaction);
+      await updateTransaction(transaction.id, transaction, currentUser.uid);
       navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while updating the transaction');
@@ -58,7 +58,7 @@ export const useTransactionProcessing = () => {
     setError(null);
 
     try {
-      await deleteTransaction(transactionId);
+      await deleteTransaction(transactionId, currentUser.uid);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while deleting the transaction');
     } finally {
