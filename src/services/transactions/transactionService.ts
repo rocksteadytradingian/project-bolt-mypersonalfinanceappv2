@@ -2,29 +2,12 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { Transaction } from '../../types/finance';
 import { v4 as uuidv4 } from 'uuid';
-import { updateCreditCardBalance } from './creditCardUpdater';
-import { updateDebtBalance } from './debtUpdater';
-import { updateFundSourceBalance } from './fundSourceUpdater';
-import { updateLoanBalance } from './loanUpdater';
+import { useFinanceStore } from '../../store/useFinanceStore';
+import { processTransaction as processTransactionWithStore } from './processing';
 
 export const processTransaction = async (transaction: Transaction): Promise<void> => {
-  // Process based on payment method
-  if (transaction.paymentMethod === 'credit_card' && transaction.creditCardId) {
-    await updateCreditCardBalance(transaction.creditCardId, transaction.amount);
-  }
-
-  // Process based on associated IDs
-  if (transaction.debtId) {
-    await updateDebtBalance(transaction.debtId, transaction.amount);
-  }
-
-  if (transaction.fundSourceId) {
-    await updateFundSourceBalance(transaction.fundSourceId, transaction.amount);
-  }
-
-  if (transaction.loanId) {
-    await updateLoanBalance(transaction.loanId, transaction.amount);
-  }
+  const store = useFinanceStore.getState();
+  await processTransactionWithStore(transaction, store);
 };
 
 export const addTransaction = async (
