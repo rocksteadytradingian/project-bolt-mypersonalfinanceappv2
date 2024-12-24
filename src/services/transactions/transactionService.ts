@@ -1,18 +1,7 @@
-import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  query, 
-  where,
-  getDocs,
-  DocumentData,
-  QuerySnapshot,
-  DocumentReference
-} from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
-import { Transaction, PaymentMethod } from '../../types/finance';
+import { Transaction } from '../../types/finance';
+import { v4 as uuidv4 } from 'uuid';
 import { updateCreditCardBalance } from './creditCardUpdater';
 import { updateDebtBalance } from './debtUpdater';
 import { updateFundSourceBalance } from './fundSourceUpdater';
@@ -43,25 +32,36 @@ export const addTransaction = async (
   userId: string
 ): Promise<string> => {
   try {
-    const transactionWithUser = {
+    const docRef = doc(db, `financial_records/${userId}`);
+    const docSnap = await getDoc(docRef);
+    
+    if (!docSnap.exists()) {
+      throw new Error('Financial records not found');
+    }
+
+    const data = docSnap.data();
+    const transactionId = uuidv4();
+    const newTransaction = {
       ...transaction,
+      id: transactionId,
       userId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
 
-    const docRef = await addDoc(
-      collection(db, 'transactions'), 
-      transactionWithUser
-    );
+    // Add new transaction to existing transactions array
+    const updatedTransactions: Transaction[] = [...(data.transactions || []), newTransaction];
+
+    // Update the financial_records document
+    await setDoc(docRef, {
+      ...data,
+      transactions: updatedTransactions
+    }, { merge: true });
 
     // Process the transaction based on its type
-    await processTransaction({
-      ...transactionWithUser,
-      id: docRef.id
-    });
+    await processTransaction(newTransaction);
 
-    return docRef.id;
+    return transactionId;
   } catch (error) {
     console.error('Error adding transaction:', error);
     throw error;
@@ -70,20 +70,39 @@ export const addTransaction = async (
 
 export const updateTransaction = async (
   id: string,
-  updates: Partial<Transaction>
+  updates: Partial<Transaction>,
+  userId: string
 ): Promise<void> => {
   try {
-    const updateData = {
-      ...updates,
-      updatedAt: new Date().toISOString()
-    };
+    const docRef = doc(db, `financial_records/${userId}`);
+    const docSnap = await getDoc(docRef);
+    
+    if (!docSnap.exists()) {
+      throw new Error('Financial records not found');
+    }
 
-    await updateDoc(doc(db, 'transactions', id), updateData);
+    const data = docSnap.data();
+    const transactions: Transaction[] = data.transactions || [];
+    
+    // Find and update the specific transaction
+    const updatedTransactions = transactions.map((t: Transaction) => 
+      t.id === id 
+        ? { ...t, ...updates, updatedAt: new Date().toISOString() }
+        : t
+    );
+
+    // Update the financial_records document
+    await setDoc(docRef, {
+      ...data,
+      transactions: updatedTransactions
+    }, { merge: true });
 
     // If amount changed or payment method changed, process the transaction again
     if ('amount' in updates || 'paymentMethod' in updates) {
-      const fullTransaction = { ...updates, id } as Transaction;
-      await processTransaction(fullTransaction);
+      const fullTransaction = transactions.find(t => t.id === id);
+      if (fullTransaction) {
+        await processTransaction({ ...fullTransaction, ...updates });
+      }
     }
   } catch (error) {
     console.error('Error updating transaction:', error);
@@ -91,9 +110,26 @@ export const updateTransaction = async (
   }
 };
 
-export const deleteTransaction = async (transactionId: string): Promise<void> => {
+export const deleteTransaction = async (transactionId: string, userId: string): Promise<void> => {
   try {
-    await deleteDoc(doc(db, 'transactions', transactionId));
+    const docRef = doc(db, `financial_records/${userId}`);
+    const docSnap = await getDoc(docRef);
+    
+    if (!docSnap.exists()) {
+      throw new Error('Financial records not found');
+    }
+
+    const data = docSnap.data();
+    const transactions = data.transactions || [];
+    
+    // Filter out the transaction to delete
+    const updatedTransactions = transactions.filter((t: Transaction) => t.id !== transactionId);
+
+    // Update the financial_records document
+    await setDoc(docRef, {
+      ...data,
+      transactions: updatedTransactions
+    }, { merge: true });
   } catch (error) {
     console.error('Error deleting transaction:', error);
     throw error;
@@ -102,16 +138,15 @@ export const deleteTransaction = async (transactionId: string): Promise<void> =>
 
 export const getUserTransactions = async (userId: string): Promise<Transaction[]> => {
   try {
-    const q = query(
-      collection(db, 'transactions'),
-      where('userId', '==', userId)
-    );
+    const docRef = doc(db, `financial_records/${userId}`);
+    const docSnap = await getDoc(docRef);
+    
+    if (!docSnap.exists()) {
+      return [];
+    }
 
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as Transaction[];
+    const data = docSnap.data();
+    return data.transactions || [];
   } catch (error) {
     console.error('Error getting user transactions:', error);
     throw error;
