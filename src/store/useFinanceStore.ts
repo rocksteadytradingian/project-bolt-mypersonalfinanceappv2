@@ -75,12 +75,31 @@ const defaultCategories: Category[] = [
 ];
 
 // Helper function to sync with Firebase
-const syncWithFirebase = async (userId: string | undefined, collection: keyof FinancialData, data: any) => {
+const syncWithFirebase = async (userId: string | undefined, state: FinanceStore) => {
   if (userId) {
     try {
-      await updateUserFinancialData(userId, collection, data);
+      const financialData: FinancialData = {
+        transactions: state.transactions,
+        creditCards: state.creditCards,
+        fundSources: state.fundSources,
+        loans: state.loans,
+        debts: state.debts,
+        investments: state.investments,
+        budgets: state.budgets,
+        recurringTransactions: state.recurringTransactions,
+        categories: state.categories
+      };
+      await updateUserFinancialData(userId, 'transactions', financialData.transactions);
+      await updateUserFinancialData(userId, 'fundSources', financialData.fundSources);
+      await updateUserFinancialData(userId, 'creditCards', financialData.creditCards);
+      await updateUserFinancialData(userId, 'loans', financialData.loans);
+      await updateUserFinancialData(userId, 'debts', financialData.debts);
+      await updateUserFinancialData(userId, 'investments', financialData.investments);
+      await updateUserFinancialData(userId, 'budgets', financialData.budgets);
+      await updateUserFinancialData(userId, 'recurringTransactions', financialData.recurringTransactions);
+      await updateUserFinancialData(userId, 'categories', financialData.categories);
     } catch (error) {
-      console.error(`Error syncing ${collection} with Firebase:`, error);
+      console.error('Error syncing with Firebase:', error);
     }
   }
 };
@@ -107,190 +126,270 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
       addTransaction: (transaction) => {
         const newTransaction = { ...transaction, id: uuidv4() };
         set((state) => {
-          const newTransactions = [...state.transactions, newTransaction];
-          syncWithFirebase(state.userProfile?.id, 'transactions', newTransactions);
-          return { transactions: newTransactions };
+          const newState = {
+            ...state,
+            transactions: [...state.transactions, newTransaction]
+          };
+          syncWithFirebase(state.userProfile?.id, newState);
+          return newState;
         });
       },
       updateTransaction: (transaction) => set((state) => {
-        const newTransactions = state.transactions.map((t) => 
-          t.id === transaction.id ? transaction : t
-        );
-        syncWithFirebase(state.userProfile?.id, 'transactions', newTransactions);
-        return { transactions: newTransactions };
+        const newState = {
+          ...state,
+          transactions: state.transactions.map((t) => 
+            t.id === transaction.id ? transaction : t
+          )
+        };
+        syncWithFirebase(state.userProfile?.id, newState);
+        return newState;
       }),
       deleteTransaction: (transactionId) => set((state) => {
-        const newTransactions = state.transactions.filter((t) => t.id !== transactionId);
-        syncWithFirebase(state.userProfile?.id, 'transactions', newTransactions);
-        return { transactions: newTransactions };
+        const newState = {
+          ...state,
+          transactions: state.transactions.filter((t) => t.id !== transactionId)
+        };
+        syncWithFirebase(state.userProfile?.id, newState);
+        return newState;
       }),
 
       addFundSource: (source) => {
         const newSource = { ...source, id: uuidv4() };
         set((state) => {
-          const newFundSources = [...state.fundSources, newSource];
-          syncWithFirebase(state.userProfile?.id, 'fundSources', newFundSources);
-          return { fundSources: newFundSources };
+          const newState = {
+            ...state,
+            fundSources: [...state.fundSources, newSource]
+          };
+          syncWithFirebase(state.userProfile?.id, newState);
+          return newState;
         });
       },
       updateFundSource: (source) => set((state) => {
-        const newFundSources = state.fundSources.map((s) => 
-          s.id === source.id ? source : s
-        );
-        syncWithFirebase(state.userProfile?.id, 'fundSources', newFundSources);
-        return { fundSources: newFundSources };
+        const newState = {
+          ...state,
+          fundSources: state.fundSources.map((s) => 
+            s.id === source.id ? source : s
+          )
+        };
+        syncWithFirebase(state.userProfile?.id, newState);
+        return newState;
       }),
       deleteFundSource: (sourceId) => set((state) => {
-        const newFundSources = state.fundSources.filter((s) => s.id !== sourceId);
-        syncWithFirebase(state.userProfile?.id, 'fundSources', newFundSources);
-        return { fundSources: newFundSources };
+        const newState = {
+          ...state,
+          fundSources: state.fundSources.filter((s) => s.id !== sourceId)
+        };
+        syncWithFirebase(state.userProfile?.id, newState);
+        return newState;
       }),
 
-      // Other methods with similar Firebase sync pattern
       addCreditCard: (card) => {
         const newCard = { ...card, id: uuidv4() };
         set((state) => {
-          const newCreditCards = [...state.creditCards, newCard];
-          syncWithFirebase(state.userProfile?.id, 'creditCards', newCreditCards);
-          return { creditCards: newCreditCards };
+          const newState = {
+            ...state,
+            creditCards: [...state.creditCards, newCard]
+          };
+          syncWithFirebase(state.userProfile?.id, newState);
+          return newState;
         });
       },
       updateCreditCard: (card) => set((state) => {
-        const newCreditCards = state.creditCards.map((c) => 
-          c.id === card.id ? card : c
-        );
-        syncWithFirebase(state.userProfile?.id, 'creditCards', newCreditCards);
-        return { creditCards: newCreditCards };
+        const newState = {
+          ...state,
+          creditCards: state.creditCards.map((c) => 
+            c.id === card.id ? card : c
+          )
+        };
+        syncWithFirebase(state.userProfile?.id, newState);
+        return newState;
       }),
       deleteCreditCard: (cardId) => set((state) => {
-        const newCreditCards = state.creditCards.filter((c) => c.id !== cardId);
-        syncWithFirebase(state.userProfile?.id, 'creditCards', newCreditCards);
-        return { creditCards: newCreditCards };
+        const newState = {
+          ...state,
+          creditCards: state.creditCards.filter((c) => c.id !== cardId)
+        };
+        syncWithFirebase(state.userProfile?.id, newState);
+        return newState;
       }),
 
       addLoan: (loan) => {
         const newLoan = { ...loan, id: uuidv4() };
         set((state) => {
-          const newLoans = [...state.loans, newLoan];
-          syncWithFirebase(state.userProfile?.id, 'loans', newLoans);
-          return { loans: newLoans };
+          const newState = {
+            ...state,
+            loans: [...state.loans, newLoan]
+          };
+          syncWithFirebase(state.userProfile?.id, newState);
+          return newState;
         });
       },
       updateLoan: (loan) => set((state) => {
-        const newLoans = state.loans.map((l) => 
-          l.id === loan.id ? loan : l
-        );
-        syncWithFirebase(state.userProfile?.id, 'loans', newLoans);
-        return { loans: newLoans };
+        const newState = {
+          ...state,
+          loans: state.loans.map((l) => 
+            l.id === loan.id ? loan : l
+          )
+        };
+        syncWithFirebase(state.userProfile?.id, newState);
+        return newState;
       }),
       deleteLoan: (loanId) => set((state) => {
-        const newLoans = state.loans.filter((l) => l.id !== loanId);
-        syncWithFirebase(state.userProfile?.id, 'loans', newLoans);
-        return { loans: newLoans };
+        const newState = {
+          ...state,
+          loans: state.loans.filter((l) => l.id !== loanId)
+        };
+        syncWithFirebase(state.userProfile?.id, newState);
+        return newState;
       }),
 
       addDebt: (debt) => {
         const newDebt = { ...debt, id: uuidv4() };
         set((state) => {
-          const newDebts = [...state.debts, newDebt];
-          syncWithFirebase(state.userProfile?.id, 'debts', newDebts);
-          return { debts: newDebts };
+          const newState = {
+            ...state,
+            debts: [...state.debts, newDebt]
+          };
+          syncWithFirebase(state.userProfile?.id, newState);
+          return newState;
         });
       },
       updateDebt: (debt) => set((state) => {
-        const newDebts = state.debts.map((d) => 
-          d.id === debt.id ? debt : d
-        );
-        syncWithFirebase(state.userProfile?.id, 'debts', newDebts);
-        return { debts: newDebts };
+        const newState = {
+          ...state,
+          debts: state.debts.map((d) => 
+            d.id === debt.id ? debt : d
+          )
+        };
+        syncWithFirebase(state.userProfile?.id, newState);
+        return newState;
       }),
       deleteDebt: (debtId) => set((state) => {
-        const newDebts = state.debts.filter((d) => d.id !== debtId);
-        syncWithFirebase(state.userProfile?.id, 'debts', newDebts);
-        return { debts: newDebts };
+        const newState = {
+          ...state,
+          debts: state.debts.filter((d) => d.id !== debtId)
+        };
+        syncWithFirebase(state.userProfile?.id, newState);
+        return newState;
       }),
 
       addInvestment: (investment) => {
         const newInvestment = { ...investment, id: uuidv4() };
         set((state) => {
-          const newInvestments = [...state.investments, newInvestment];
-          syncWithFirebase(state.userProfile?.id, 'investments', newInvestments);
-          return { investments: newInvestments };
+          const newState = {
+            ...state,
+            investments: [...state.investments, newInvestment]
+          };
+          syncWithFirebase(state.userProfile?.id, newState);
+          return newState;
         });
       },
       updateInvestment: (investment) => set((state) => {
-        const newInvestments = state.investments.map((i) => 
-          i.id === investment.id ? investment : i
-        );
-        syncWithFirebase(state.userProfile?.id, 'investments', newInvestments);
-        return { investments: newInvestments };
+        const newState = {
+          ...state,
+          investments: state.investments.map((i) => 
+            i.id === investment.id ? investment : i
+          )
+        };
+        syncWithFirebase(state.userProfile?.id, newState);
+        return newState;
       }),
       deleteInvestment: (investmentId) => set((state) => {
-        const newInvestments = state.investments.filter((i) => i.id !== investmentId);
-        syncWithFirebase(state.userProfile?.id, 'investments', newInvestments);
-        return { investments: newInvestments };
+        const newState = {
+          ...state,
+          investments: state.investments.filter((i) => i.id !== investmentId)
+        };
+        syncWithFirebase(state.userProfile?.id, newState);
+        return newState;
       }),
 
       addBudget: (budget) => {
         const newBudget = { ...budget, id: uuidv4() };
         set((state) => {
-          const newBudgets = [...state.budgets, newBudget];
-          syncWithFirebase(state.userProfile?.id, 'budgets', newBudgets);
-          return { budgets: newBudgets };
+          const newState = {
+            ...state,
+            budgets: [...state.budgets, newBudget]
+          };
+          syncWithFirebase(state.userProfile?.id, newState);
+          return newState;
         });
       },
       updateBudget: (budget) => set((state) => {
-        const newBudgets = state.budgets.map((b) => 
-          b.id === budget.id ? budget : b
-        );
-        syncWithFirebase(state.userProfile?.id, 'budgets', newBudgets);
-        return { budgets: newBudgets };
+        const newState = {
+          ...state,
+          budgets: state.budgets.map((b) => 
+            b.id === budget.id ? budget : b
+          )
+        };
+        syncWithFirebase(state.userProfile?.id, newState);
+        return newState;
       }),
       deleteBudget: (budgetId) => set((state) => {
-        const newBudgets = state.budgets.filter((b) => b.id !== budgetId);
-        syncWithFirebase(state.userProfile?.id, 'budgets', newBudgets);
-        return { budgets: newBudgets };
+        const newState = {
+          ...state,
+          budgets: state.budgets.filter((b) => b.id !== budgetId)
+        };
+        syncWithFirebase(state.userProfile?.id, newState);
+        return newState;
       }),
 
       addRecurringTransaction: (transaction) => {
         const newTransaction = { ...transaction, id: uuidv4() };
         set((state) => {
-          const newRecurringTransactions = [...state.recurringTransactions, newTransaction];
-          syncWithFirebase(state.userProfile?.id, 'recurringTransactions', newRecurringTransactions);
-          return { recurringTransactions: newRecurringTransactions };
+          const newState = {
+            ...state,
+            recurringTransactions: [...state.recurringTransactions, newTransaction]
+          };
+          syncWithFirebase(state.userProfile?.id, newState);
+          return newState;
         });
       },
       updateRecurringTransaction: (transaction) => set((state) => {
-        const newRecurringTransactions = state.recurringTransactions.map((t) => 
-          t.id === transaction.id ? transaction : t
-        );
-        syncWithFirebase(state.userProfile?.id, 'recurringTransactions', newRecurringTransactions);
-        return { recurringTransactions: newRecurringTransactions };
+        const newState = {
+          ...state,
+          recurringTransactions: state.recurringTransactions.map((t) => 
+            t.id === transaction.id ? transaction : t
+          )
+        };
+        syncWithFirebase(state.userProfile?.id, newState);
+        return newState;
       }),
       deleteRecurringTransaction: (transactionId) => set((state) => {
-        const newRecurringTransactions = state.recurringTransactions.filter((t) => t.id !== transactionId);
-        syncWithFirebase(state.userProfile?.id, 'recurringTransactions', newRecurringTransactions);
-        return { recurringTransactions: newRecurringTransactions };
+        const newState = {
+          ...state,
+          recurringTransactions: state.recurringTransactions.filter((t) => t.id !== transactionId)
+        };
+        syncWithFirebase(state.userProfile?.id, newState);
+        return newState;
       }),
 
       addCategory: (category) => {
         const newCategory = { ...category, id: uuidv4() };
         set((state) => {
-          const newCategories = [...state.categories, newCategory];
-          syncWithFirebase(state.userProfile?.id, 'categories', newCategories);
-          return { categories: newCategories };
+          const newState = {
+            ...state,
+            categories: [...state.categories, newCategory]
+          };
+          syncWithFirebase(state.userProfile?.id, newState);
+          return newState;
         });
       },
       updateCategory: (category) => set((state) => {
-        const newCategories = state.categories.map((c) => 
-          c.id === category.id ? category : c
-        );
-        syncWithFirebase(state.userProfile?.id, 'categories', newCategories);
-        return { categories: newCategories };
+        const newState = {
+          ...state,
+          categories: state.categories.map((c) => 
+            c.id === category.id ? category : c
+          )
+        };
+        syncWithFirebase(state.userProfile?.id, newState);
+        return newState;
       }),
       deleteCategory: (categoryId) => set((state) => {
-        const newCategories = state.categories.filter((c) => c.id !== categoryId);
-        syncWithFirebase(state.userProfile?.id, 'categories', newCategories);
-        return { categories: newCategories };
+        const newState = {
+          ...state,
+          categories: state.categories.filter((c) => c.id !== categoryId)
+        };
+        syncWithFirebase(state.userProfile?.id, newState);
+        return newState;
       })
 }));
