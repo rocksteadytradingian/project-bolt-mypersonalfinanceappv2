@@ -5,9 +5,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { useFinanceStore } from '../../store/useFinanceStore';
 import { processTransaction as processTransactionInternal } from './processing';
 
+const getStore = () => useFinanceStore.getState();
+
 export const processTransaction = async (transaction: Transaction): Promise<void> => {
-  const store = useFinanceStore.getState();
-  await processTransactionInternal(transaction, store);
+  await processTransactionInternal(transaction, getStore());
 };
 
 export const addTransaction = async (
@@ -42,8 +43,7 @@ export const addTransaction = async (
     }, { merge: true });
 
     // Process the transaction based on its type
-    const store = useFinanceStore.getState();
-    await processTransactionInternal(newTransaction, store);
+    await processTransactionInternal(newTransaction, getStore());
 
     return transactionId;
   } catch (error) {
@@ -85,8 +85,7 @@ export const updateTransaction = async (
     if ('amount' in updates || 'paymentMethod' in updates) {
       const fullTransaction = transactions.find(t => t.id === id);
       if (fullTransaction) {
-        const store = useFinanceStore.getState();
-        await processTransactionInternal({ ...fullTransaction, ...updates }, store);
+        await processTransactionInternal({ ...fullTransaction, ...updates }, getStore());
       }
     }
   } catch (error) {
