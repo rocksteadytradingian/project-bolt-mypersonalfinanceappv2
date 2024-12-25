@@ -43,7 +43,7 @@ const incomeCategories = [
 ];
 
 export function TransactionForm({ transaction, onSubmit, onCancel }: TransactionFormProps) {
-  const { transactions, fundSources, updateFundSource } = useFinanceStore();
+  const { transactions, fundSources, updateFundSource, userProfile } = useFinanceStore();
   const [newCategory, setNewCategory] = useState('');
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [previewTransaction, setPreviewTransaction] = useState<Omit<Transaction, 'id'> | null>(null);
@@ -119,7 +119,7 @@ export function TransactionForm({ transaction, onSubmit, onCancel }: Transaction
     }
   }, [formData]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
@@ -128,26 +128,48 @@ export function TransactionForm({ transaction, onSubmit, onCancel }: Transaction
 
     const newTransaction: Omit<Transaction, 'id'> = {
       ...formData,
-      userId: '', // Will be set by the service
+      userId: userProfile?.id || '',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
-    // Update fund source balance for income transactions
-    if (formData.type === 'income' && formData.fundSourceId) {
-      const fundSource = fundSources.find(fs => fs.id === formData.fundSourceId);
-      if (fundSource) {
-        const updatedFundSource: FundSource = {
-          ...fundSource,
-          currentBalance: fundSource.currentBalance + formData.amount,
-          lastUpdated: new Date().toISOString(),
-          transactions: [...fundSource.transactions, { ...newTransaction, id: 'temp-id' }]
-        };
-        updateFundSource(updatedFundSource);
+    try {
+      // Update fund source balance for income transactions
+      if (formData.type === 'income' && formData.fundSourceId) {
+        const fundSource = fundSources.find(fs => fs.id === formData.fundSourceId);
+        if (fundSource) {
+          const updatedFundSource: FundSource = {
+            ...fundSource,
+            currentBalance: fundSource.currentBalance + formData.amount,
+            lastUpdated: new Date().toISOString(),
+            transactions: [...fundSource.transactions, { ...newTransaction, id: 'temp-id' }]
+          };
+          await updateFundSource(updatedFundSource);
+        }
       }
-    }
 
-    onSubmit(newTransaction);
+      await onSubmit(newTransaction);
+      
+      // Clear form after successful submission
+      setFormData({
+        type: 'expense' as TransactionType,
+        amount: 0,
+        date: now.toISOString().split('T')[0],
+        time: currentTime,
+        category: '',
+        details: '',
+        fundSourceId: '',
+      });
+      
+      setPreviewTransaction(null);
+    } catch (error) {
+      console.error('Error adding transaction:', error);
+      // Show error to user
+      setErrors(prev => ({
+        ...prev,
+        submit: 'Failed to add transaction. Please try again.'
+      }));
+    }
   };
 
   return (

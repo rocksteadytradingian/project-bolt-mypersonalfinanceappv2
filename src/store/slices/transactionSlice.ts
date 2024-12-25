@@ -1,5 +1,5 @@
 import { StateCreator } from 'zustand';
-import { processTransaction } from '../../services/transactions/transactionService';
+import { handleTransaction } from '../../services/transactions/transactionService';
 import { Transaction } from '../../types/finance';
 
 export interface TransactionSlice {
@@ -13,14 +13,14 @@ export const createTransactionSlice: StateCreator<TransactionSlice> = (set, get)
   transactions: [],
 
   addTransaction: async (transaction) => {
-    await processTransaction(transaction);
+    await handleTransaction(transaction);
     set((state) => ({
       transactions: [...state.transactions, transaction]
     }));
   },
 
   updateTransaction: async (transaction) => {
-    await processTransaction(transaction);
+    await handleTransaction(transaction);
     set((state) => ({
       transactions: state.transactions.map((t) => 
         t.id === transaction.id ? transaction : t
