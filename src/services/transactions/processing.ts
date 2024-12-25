@@ -1,6 +1,17 @@
-import { Transaction } from '../../types/finance';
-import { useFinanceStore } from '../../store/useFinanceStore';
+import { Transaction, FundSource, CreditCard, Loan, Debt } from '../../types/finance';
 import { dateToString } from '../../types/finance';
+
+interface Store {
+  creditCards: CreditCard[];
+  fundSources: FundSource[];
+  loans: Loan[];
+  debts: Debt[];
+  updateCreditCard: (card: CreditCard) => void;
+  updateFundSource: (source: FundSource) => void;
+  updateLoan: (loan: Loan) => void;
+  updateDebt: (debt: Debt) => void;
+  addTransaction: (transaction: Transaction) => void;
+}
 
 const calculateMonthlyFlow = (transactions: Transaction[]): number => {
   const now = new Date();
@@ -17,6 +28,8 @@ const calculateMonthlyFlow = (transactions: Transaction[]): number => {
       return total;
     }, 0);
 };
+
+import { useFinanceStore } from '../../store/useFinanceStore';
 
 export const processTransaction = async (transaction: Transaction) => {
   const store = useFinanceStore.getState();

@@ -2,13 +2,10 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { Transaction } from '../../types/finance';
 import { v4 as uuidv4 } from 'uuid';
-import { useFinanceStore } from '../../store/useFinanceStore';
-import { processTransaction as processTransactionInternal } from './processing';
+import { processTransaction } from './processing';
 
-const getStore = () => useFinanceStore.getState();
-
-export const processTransaction = async (transaction: Transaction): Promise<void> => {
-  await processTransactionInternal(transaction, getStore());
+export const handleTransaction = async (transaction: Transaction): Promise<void> => {
+  await processTransaction(transaction);
 };
 
 export const addTransaction = async (
@@ -43,7 +40,7 @@ export const addTransaction = async (
     }, { merge: true });
 
     // Process the transaction based on its type
-    await processTransactionInternal(newTransaction, getStore());
+    await handleTransaction(newTransaction);
 
     return transactionId;
   } catch (error) {
@@ -85,7 +82,7 @@ export const updateTransaction = async (
     if ('amount' in updates || 'paymentMethod' in updates) {
       const fullTransaction = transactions.find(t => t.id === id);
       if (fullTransaction) {
-        await processTransactionInternal({ ...fullTransaction, ...updates }, getStore());
+        await handleTransaction({ ...fullTransaction, ...updates });
       }
     }
   } catch (error) {
