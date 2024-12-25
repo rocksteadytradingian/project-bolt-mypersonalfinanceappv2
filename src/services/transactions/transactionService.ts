@@ -2,10 +2,10 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { Transaction } from '../../types/finance';
 import { v4 as uuidv4 } from 'uuid';
-import { processTransaction } from './processing';
+import { handleTransaction as handleTransactionCore } from './processing';
 
 export const handleTransaction = async (transaction: Transaction): Promise<void> => {
-  await processTransaction(transaction);
+  await handleTransactionCore(transaction);
 };
 
 export const addTransaction = async (

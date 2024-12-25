@@ -31,7 +31,7 @@ const calculateMonthlyFlow = (transactions: Transaction[]): number => {
 
 import { useFinanceStore } from '../../store/useFinanceStore';
 
-export const processTransaction = async (transaction: Transaction) => {
+export const handleTransaction = async (transaction: Transaction) => {
   const store = useFinanceStore.getState();
 
   if (transaction.creditCardId) {
