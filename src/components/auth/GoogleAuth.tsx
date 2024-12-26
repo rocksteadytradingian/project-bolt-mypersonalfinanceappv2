@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../ui/Button';
 import { signInWithGoogle, getUserProfile } from '../../services/auth/authService';
 import { useAuth } from '../../contexts/AuthContext';
+import { auth } from '../../config/firebase';
 
 export function GoogleAuth() {
   const navigate = useNavigate();
@@ -32,20 +33,49 @@ export function GoogleAuth() {
     setError('');
 
     try {
+      // Add delay before sign-in attempt to ensure Firebase is fully initialized
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Log Firebase auth state
+      console.log('Firebase Auth State:', {
+        initialized: !!auth,
+        currentUser: auth?.currentUser?.uid,
+        config: auth?.config,
+        name: auth?.name
+      });
+
       const result = await signInWithGoogle();
+      console.log('Google Sign In Result:', {
+        success: true,
+        isNewUser: result.isNewUser,
+        uid: result.user.uid
+      });
+
       if (result.isNewUser) {
         navigate('/profile/setup', { replace: true });
       }
       // If not a new user, navigation will be handled by the useEffect above
     } catch (error: any) {
+      console.error('Google Sign In Error:', {
+        code: error.code,
+        message: error.message,
+        stack: error.stack
+      });
+
+      // Handle specific error cases
       if (error.code === 'auth/popup-closed-by-user') {
         setError('Sign in was cancelled. Please try again.');
       } else if (error.code === 'auth/popup-blocked') {
         setError('Sign in popup was blocked. Please allow popups for this site.');
+      } else if (error.code === 'auth/network-request-failed') {
+        setError('Network error. Please check your connection and try again.');
+      } else if (error.code === 'auth/internal-error') {
+        setError('An internal error occurred. Please wait a moment and try again.');
+      } else if (error.code === 'auth/timeout') {
+        setError('The request timed out. Please try again.');
       } else {
         setError(error.message || 'Failed to sign in with Google. Please try again.');
       }
-      console.error('Error signing in with Google:', error);
     } finally {
       setLoading(false);
     }
