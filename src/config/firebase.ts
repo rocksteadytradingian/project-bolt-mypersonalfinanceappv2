@@ -38,17 +38,83 @@ if (missingKeys.length > 0) {
   throw new Error(`Missing required Firebase configuration keys: ${missingKeys.join(', ')}`);
 }
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-console.log('Firebase initialized successfully');
+// Initialize Firebase with retry mechanism
+const initializeFirebaseApp = async (retries = 3) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const app = initializeApp(firebaseConfig);
+      console.log('Firebase app initialized successfully');
+      return app;
+    } catch (error) {
+      console.error(`Firebase app initialization attempt ${i + 1} failed:`, error);
+      if (i === retries - 1) throw error;
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+    }
+  }
+  throw new Error('Failed to initialize Firebase app after multiple attempts');
+};
 
-// Get Auth instance
+// Initialize Firestore with retry mechanism
+const initializeFirestoreDb = async (app: FirebaseApp, retries = 3) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const db = initializeFirestore(app, {
+        cacheSizeBytes: 1048576 * 50, // 50MB cache size
+        ignoreUndefinedProperties: true,
+      });
+      console.log('Firestore initialized successfully');
+      return db;
+    } catch (error) {
+      console.error(`Firestore initialization attempt ${i + 1} failed:`, error);
+      if (i === retries - 1) throw error;
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+    }
+  }
+  throw new Error('Failed to initialize Firestore after multiple attempts');
+};
+
+// Initialize Firebase services
+const app = await initializeFirebaseApp();
+const db = await initializeFirestoreDb(app);
 const auth = getAuth(app);
 
-// Set auth persistence
-setPersistence(auth, browserLocalPersistence).catch((error) => {
-  console.error('Auth persistence error:', error);
-});
+// Configure auth persistence with retry mechanism
+const initializeAuthPersistence = async (retries = 3) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      await setPersistence(auth, browserLocalPersistence);
+      console.log('Auth persistence initialized successfully');
+      return;
+    } catch (error) {
+      console.error(`Auth persistence initialization attempt ${i + 1} failed:`, error);
+      if (i === retries - 1) throw error;
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+    }
+  }
+  throw new Error('Failed to initialize auth persistence after multiple attempts');
+};
+
+// Configure Firestore persistence with retry mechanism
+const initializeFirestorePersistence = async (retries = 3) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      await enableMultiTabIndexedDbPersistence(db);
+      console.log('Multi-tab persistence enabled successfully');
+      return;
+    } catch (err: any) {
+      if (err.code === 'failed-precondition') {
+        console.warn('Multiple tabs detected, persistence already enabled in another tab');
+        return;
+      } else if (err.code === 'unimplemented') {
+        console.warn('Persistence not supported by browser');
+        return;
+      }
+      console.error(`Persistence initialization attempt ${i + 1} failed:`, err);
+      if (i === retries - 1) throw err;
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
+    }
+  }
+};
 
 // Configure Google Auth Provider
 const googleProvider = new GoogleAuthProvider();
@@ -58,30 +124,13 @@ googleProvider.setCustomParameters({
 });
 auth.useDeviceLanguage();
 
-// Initialize Firestore with basic config first
-const db = initializeFirestore(app, {
-  cacheSizeBytes: 1048576 * 50, // 50MB cache size
-  ignoreUndefinedProperties: true,
-});
-
-// Try to enable persistence
-const initializePersistence = async () => {
-  try {
-    await enableMultiTabIndexedDbPersistence(db);
-    console.log('Multi-tab persistence enabled successfully');
-  } catch (err: any) {
-    if (err.code === 'failed-precondition') {
-      console.warn('Multiple tabs detected, persistence already enabled in another tab');
-    } else if (err.code === 'unimplemented') {
-      console.warn('Persistence not supported by browser');
-    } else {
-      console.error('Persistence initialization error:', err);
-    }
-  }
-};
-
 // Initialize persistence in the background
-initializePersistence().catch(console.error);
+Promise.all([
+  initializeAuthPersistence(),
+  initializeFirestorePersistence()
+]).catch(error => {
+  console.error('Error initializing persistence:', error);
+});
 
 export { auth, db };
 export default app;
