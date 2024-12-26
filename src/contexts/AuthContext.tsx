@@ -148,12 +148,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!financialDataLoaded) {
         throw new Error('Failed to load financial data after multiple attempts');
       }
-    } catch (error) {
-      console.error('Error loading user data:', error);
-      setError('Failed to load user data. Please try again.');
-      // Reset user profile on error
-      setUserProfile(null);
-      setStoreUserProfile(null);
+    } catch (error: any) {
+      console.error('Error loading user data:', {
+        error,
+        code: error.code,
+        message: error.message,
+        userId: user.uid
+      });
+      
+      // Don't reset profile if it was successfully loaded
+      if (!userProfile) {
+        setError('Failed to load user data. Please try again.');
+        setUserProfile(null);
+        setStoreUserProfile(null);
+      }
     }
   }, [setStoreUserProfile]);
 
@@ -177,14 +185,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           await loadUserData(user);
         }
-      } catch (error) {
-        console.error('Auth state change error:', error);
-        setError('Failed to initialize application. Please try again.');
-        // Reset state on error
-        setCurrentUser(null);
-        setUserProfile(null);
-        setStoreUserProfile(null);
-        await clearFinancialData();
+      } catch (error: any) {
+        console.error('Auth state change error:', {
+          error,
+          code: error.code,
+          message: error.message,
+          state: { currentUser, userProfile }
+        });
+
+        // Only clear data if we haven't loaded anything yet
+        if (!userProfile) {
+          setError('Failed to initialize application. Please try again.');
+          setCurrentUser(null);
+          setUserProfile(null);
+          setStoreUserProfile(null);
+          await clearFinancialData();
+        }
       } finally {
         // Ensure loading states are always updated
         setLoading(false);

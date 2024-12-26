@@ -225,26 +225,40 @@ export const signInWithGoogle = async (): Promise<{ user: User; isNewUser: boole
     const result = await firebaseSignInWithPopup(auth, provider);
     const userDoc = await getDoc(doc(db, 'users', result.user.uid));
     
+    let profile: UserProfile | null = null;
+    let isNewUser = false;
+
     if (!userDoc.exists()) {
       // Create new profile
-      const newProfile = createDefaultProfile(result.user);
-      await initializeUserData(result.user, newProfile);
-      return { user: result.user, isNewUser: true };
+      profile = createDefaultProfile(result.user);
+      await initializeUserData(result.user, profile);
+      isNewUser = true;
     } else {
-      // Update existing profile with latest Google data
-      const existingProfile = userDoc.data() as UserProfile;
-      const updatedProfile = {
-        ...existingProfile,
-        name: result.user.displayName || existingProfile.name,
-        email: result.user.email || existingProfile.email,
-        photoUrl: result.user.photoURL || existingProfile.photoUrl,
-        updatedAt: new Date().toISOString()
-      };
+      // Get existing profile and try to recover if needed
+      profile = await recoverUserProfile(result.user.uid);
       
-      await setDoc(doc(db, 'users', result.user.uid), updatedProfile, { merge: true });
-      useFinanceStore.getState().setUserProfile(updatedProfile);
-      return { user: result.user, isNewUser: false };
+      if (!profile) {
+        // If recovery failed, create new profile
+        profile = createDefaultProfile(result.user);
+        await initializeUserData(result.user, profile);
+        isNewUser = true;
+      } else {
+        // Update existing profile with latest Google data
+        const updatedProfile = {
+          ...profile,
+          name: result.user.displayName || profile.name,
+          email: result.user.email || profile.email,
+          photoUrl: result.user.photoURL || profile.photoUrl,
+          updatedAt: new Date().toISOString()
+        };
+        
+        await setDoc(doc(db, 'users', result.user.uid), updatedProfile, { merge: true });
+        useFinanceStore.getState().setUserProfile(updatedProfile);
+        profile = updatedProfile;
+      }
     }
+
+    return { user: result.user, isNewUser };
   } catch (error: any) {
     console.error('Error initiating Google sign in:', error);
     throw new Error(getAuthErrorMessage(error.code));
