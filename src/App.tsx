@@ -74,13 +74,33 @@ const InitialLoading = () => (
   </div>
 );
 
+import { useAuth } from './contexts/AuthContext';
+
 function AppRoutes() {
+  const { currentUser, userProfile, loading } = useAuth();
+
+  // Show loading state while auth is initializing
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+          <p className="mt-4 text-gray-600">Loading your financial dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white">
       <Routes>
         {/* Public Routes */}
-        <Route path="/signin" element={<SignIn />} />
-        <Route path="/signup" element={<SignUp />} />
+        <Route path="/signin" element={
+          currentUser ? <Navigate to="/" replace /> : <SignIn />
+        } />
+        <Route path="/signup" element={
+          currentUser ? <Navigate to="/" replace /> : <SignUp />
+        } />
         
         {/* Profile Setup - Protected but without Navigation */}
         <Route path="/profile/setup" element={<ProtectedRoute><ProfileSetup /></ProtectedRoute>} />
@@ -231,8 +251,10 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
 
-        {/* Fallback Route */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* Fallback Route - Redirect to signin if not authenticated */}
+        <Route path="*" element={
+          !currentUser ? <Navigate to="/signin" replace /> : <Navigate to="/" replace />
+        } />
       </Routes>
     </div>
   );
