@@ -20,7 +20,24 @@ import { FundSourceTransactions } from './components/fund-sources/FundSourceTran
 import { RecurringTransactions } from './components/RecurringTransactions';
 import { FinancialConsultant } from './components/FinancialConsultant';
 import { Navigation } from './components/Navigation';
-import { auth } from './config/firebase';
+import { auth, db } from './config/firebase';
+import { enableIndexedDbPersistence } from 'firebase/firestore';
+
+// Initialize Firestore persistence
+const initializeFirestore = async () => {
+  try {
+    await enableIndexedDbPersistence(db);
+    console.log('Firestore persistence initialized');
+  } catch (err: any) {
+    if (err.code === 'failed-precondition') {
+      console.warn('Multiple tabs open, persistence can only be enabled in one tab.');
+    } else if (err.code === 'unimplemented') {
+      console.warn('The current browser does not support persistence.');
+    } else {
+      console.error('Error initializing persistence:', err);
+    }
+  }
+};
 
 // Import insight components
 import { ExpenseAnalysis } from './components/insights/ExpenseAnalysis';
@@ -225,15 +242,31 @@ function App() {
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    // Wait for Firebase Auth to initialize
-    const unsubscribe = auth.onAuthStateChanged(() => {
-      // Add a small delay to ensure auth state is properly synced
-      setTimeout(() => {
-        setIsInitialized(true);
-      }, 100);
-    });
+    let unsubscribe: () => void;
 
-    return () => unsubscribe();
+    const initialize = async () => {
+      try {
+        // Initialize Firestore persistence first
+        await initializeFirestore();
+
+        // Then wait for Firebase Auth to initialize
+        unsubscribe = auth.onAuthStateChanged(() => {
+          setIsInitialized(true);
+        });
+      } catch (error) {
+        console.error('Error during initialization:', error);
+        // Still set initialized to true to allow the app to load
+        setIsInitialized(true);
+      }
+    };
+
+    initialize();
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, []);
 
   if (!isInitialized) {
