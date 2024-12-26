@@ -1,7 +1,26 @@
-import React, { Suspense } from 'react'
+import React, { Suspense, useEffect, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
+import { auth, db } from './config/firebase'
+import { onAuthStateChanged } from 'firebase/auth'
+import { enableIndexedDbPersistence } from 'firebase/firestore'
+
+// Initialize Firebase persistence
+const initializeFirebase = async () => {
+  try {
+    await enableIndexedDbPersistence(db);
+    console.log('Firebase persistence initialized');
+  } catch (err: any) {
+    if (err.code === 'failed-precondition') {
+      console.warn('Multiple tabs open, persistence can only be enabled in one tab.');
+    } else if (err.code === 'unimplemented') {
+      console.warn('Persistence not supported by browser');
+    } else {
+      console.error('Error initializing persistence:', err);
+    }
+  }
+};
 
 // Loading component
 const LoadingScreen = () => (
@@ -53,12 +72,52 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
+// Root component to handle initialization
+const Root = () => {
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  useEffect(() => {
+    let unsubscribe: () => void;
+
+    const initialize = async () => {
+      try {
+        // Initialize Firebase persistence
+        await initializeFirebase();
+
+        // Wait for initial auth state
+        unsubscribe = onAuthStateChanged(auth, () => {
+          setIsInitialized(true);
+        });
+      } catch (error) {
+        console.error('Error during initialization:', error);
+        setIsInitialized(true); // Still set initialized to allow app to load
+      }
+    };
+
+    initialize();
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, []);
+
+  if (!isInitialized) {
+    return <LoadingScreen />;
+  }
+
+  return (
     <ErrorBoundary>
       <Suspense fallback={<LoadingScreen />}>
         <App />
       </Suspense>
     </ErrorBoundary>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <Root />
   </React.StrictMode>,
 )
