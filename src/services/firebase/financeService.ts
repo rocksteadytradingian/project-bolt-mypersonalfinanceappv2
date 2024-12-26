@@ -81,37 +81,67 @@ const getCollectionRef = (userId: string, collectionName: keyof UserFinancialDat
   return collection(db, 'users', userId, collectionName);
 };
 
-// Get paginated data from a collection
+// Get paginated data from a collection with retry mechanism
 const getPaginatedData = async <T>(
   userId: string,
   collectionName: keyof UserFinancialData,
-  pageSize: number = PAGE_SIZE
+  pageSize: number = PAGE_SIZE,
+  maxRetries: number = 3
 ): Promise<T[]> => {
-  const collectionRef = getCollectionRef(userId, collectionName);
-  const lastDoc = lastDocCache.get(`${userId}_${collectionName}`);
+  let retryCount = 0;
   
-    // First check if collection exists
-    const existenceCheck = await getDocs(query(collectionRef, limit(1)));
-    if (existenceCheck.empty) {
-      console.log(`No data found in ${collectionName} collection`);
-      return [];
+  while (retryCount < maxRetries) {
+    try {
+      const collectionRef = getCollectionRef(userId, collectionName);
+      const lastDoc = lastDocCache.get(`${userId}_${collectionName}`);
+      
+      // First check if collection exists
+      const existenceCheck = await getDocs(query(collectionRef, limit(1)));
+      if (existenceCheck.empty) {
+        console.log(`No data found in ${collectionName} collection`);
+        return [];
+      }
+
+      // Use orderBy for consistent pagination
+      const q = lastDoc
+        ? query(collectionRef, orderBy('createdAt', 'desc'), startAfter(lastDoc), limit(pageSize))
+        : query(collectionRef, orderBy('createdAt', 'desc'), limit(pageSize));
+
+      const dataSnapshot = await getDocs(q);
+      
+      // Filter out placeholder documents and validate data
+      const docs = dataSnapshot.docs
+        .filter(doc => !doc.data()._isPlaceholder)
+        .map(doc => {
+          const data = doc.data();
+          // Ensure required fields exist
+          if (!data.userId || data.userId !== userId) {
+            console.warn(`Invalid document found in ${collectionName}:`, doc.id);
+            return null;
+          }
+          return { id: doc.id, ...data };
+        })
+        .filter(Boolean) as T[];
+
+      if (dataSnapshot.docs.length > 0) {
+        lastDocCache.set(`${userId}_${collectionName}`, dataSnapshot.docs[dataSnapshot.docs.length - 1]);
+      }
+
+      return docs;
+    } catch (error) {
+      retryCount++;
+      console.error(`Error fetching ${collectionName} (attempt ${retryCount}/${maxRetries}):`, error);
+      
+      if (retryCount === maxRetries) {
+        throw new Error(`Failed to fetch ${collectionName} after ${maxRetries} attempts`);
+      }
+      
+      // Exponential backoff
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
     }
-
-    // Don't use orderBy for initial data load to avoid index issues
-    const q = query(collectionRef, limit(pageSize));
-
-    const dataSnapshot = await getDocs(q);
-    
-    // Filter out placeholder documents
-    const docs = dataSnapshot.docs
-      .filter(doc => !doc.data()._isPlaceholder)
-      .map(doc => ({ id: doc.id, ...doc.data() })) as T[];
-
-    if (docs.length > 0) {
-      lastDocCache.set(`${userId}_${collectionName}`, dataSnapshot.docs[dataSnapshot.docs.length - 1]);
-    }
-
-    return docs;
+  }
+  
+  return []; // Fallback empty array if all retries fail
 };
 
 export const getUserFinancialData = async (userId: string): Promise<UserFinancialData> => {
