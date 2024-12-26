@@ -32,7 +32,7 @@ export class GeminiProvider implements AIProvider {
       .reduce((sum, t) => sum + t.amount, 0);
 
     const totalDebt = data.debts.reduce((sum, d) => sum + d.amount, 0);
-    const totalCreditCardDebt = data.creditCards.reduce((sum, c) => sum + c.balance, 0);
+    const totalCreditCardDebt = data.creditCards.reduce((sum, c) => sum + c.currentBalance, 0);
     const totalLoanBalance = data.loans.reduce((sum, l) => sum + l.currentBalance, 0);
 
     return `You are an expert financial advisor with deep knowledge in personal finance management.

@@ -22,7 +22,7 @@ export function Dashboard() {
 
   // Calculate total balances
   const totalFundSources = fundSources.reduce((sum, source) => sum + source.currentBalance, 0);
-  const totalCreditCardDebt = creditCards.reduce((sum, card) => sum + card.balance, 0);
+  const totalCreditCardDebt = creditCards.reduce((sum, card) => sum + card.currentBalance, 0);
   const totalDebts = debts.reduce((sum, debt) => sum + debt.amount, 0);
   const totalLoans = loans.reduce((sum, loan) => sum + loan.currentBalance, 0);
   const totalInvestments = investments.reduce((sum: number, inv: Investment) => 

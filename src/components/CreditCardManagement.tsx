@@ -12,14 +12,15 @@ export function CreditCardManagement() {
   const [isAdding, setIsAdding] = useState(false);
   const [selectedCard, setSelectedCard] = useState<CreditCard | null>(null);
   const [formData, setFormData] = useState({
-    name: '',
-    bank: '',
-    limit: 0,
-    balance: 0,
+    cardName: '',
+    bankName: '',
+    creditLimit: 0,
+    currentBalance: 0,
     apr: 0,
     dueDate: 1,
     cutOffDate: 1,
-    minimumPayment: 0
+    minimumPayment: 0,
+    lastUpdated: new Date().toISOString()
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -49,28 +50,30 @@ export function CreditCardManagement() {
     setIsAdding(false);
     setSelectedCard(null);
     setFormData({
-      name: '',
-      bank: '',
-      limit: 0,
-      balance: 0,
+      cardName: '',
+      bankName: '',
+      creditLimit: 0,
+      currentBalance: 0,
       apr: 0,
       dueDate: 1,
       cutOffDate: 1,
-      minimumPayment: 0
+      minimumPayment: 0,
+      lastUpdated: new Date().toISOString()
     });
   };
 
   const handleEdit = (card: CreditCard) => {
     setSelectedCard(card);
     setFormData({
-      name: card.name,
-      bank: card.bank,
-      limit: card.limit,
-      balance: card.balance,
+      cardName: card.cardName,
+      bankName: card.bankName,
+      creditLimit: card.creditLimit,
+      currentBalance: card.currentBalance,
       apr: card.apr,
       dueDate: card.dueDate,
       cutOffDate: card.cutOffDate,
-      minimumPayment: card.minimumPayment
+      minimumPayment: card.minimumPayment,
+      lastUpdated: card.lastUpdated
     });
     setIsAdding(true);
   };
@@ -99,8 +102,8 @@ export function CreditCardManagement() {
               <label className="block text-sm font-medium text-gray-700">Card Name</label>
               <input
                 type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                value={formData.cardName}
+                onChange={(e) => setFormData({ ...formData, cardName: e.target.value })}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 required
               />
@@ -110,8 +113,8 @@ export function CreditCardManagement() {
               <label className="block text-sm font-medium text-gray-700">Bank</label>
               <input
                 type="text"
-                value={formData.bank}
-                onChange={(e) => setFormData({ ...formData, bank: e.target.value })}
+                value={formData.bankName}
+                onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 required
               />
@@ -122,8 +125,8 @@ export function CreditCardManagement() {
                 <label className="block text-sm font-medium text-gray-700">Credit Limit</label>
                 <input
                   type="number"
-                  value={formData.limit}
-                  onChange={(e) => setFormData({ ...formData, limit: parseFloat(e.target.value) })}
+                  value={formData.creditLimit}
+                  onChange={(e) => setFormData({ ...formData, creditLimit: parseFloat(e.target.value) })}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   required
                   min="0"
@@ -135,8 +138,8 @@ export function CreditCardManagement() {
                 <label className="block text-sm font-medium text-gray-700">Current Balance</label>
                 <input
                   type="number"
-                  value={formData.balance}
-                  onChange={(e) => setFormData({ ...formData, balance: parseFloat(e.target.value) })}
+                  value={formData.currentBalance}
+                  onChange={(e) => setFormData({ ...formData, currentBalance: parseFloat(e.target.value) })}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   required
                   min="0"
@@ -211,14 +214,15 @@ export function CreditCardManagement() {
                   setIsAdding(false);
                   setSelectedCard(null);
                   setFormData({
-                    name: '',
-                    bank: '',
-                    limit: 0,
-                    balance: 0,
+                    cardName: '',
+                    bankName: '',
+                    creditLimit: 0,
+                    currentBalance: 0,
                     apr: 0,
                     dueDate: 1,
                     cutOffDate: 1,
-                    minimumPayment: 0
+                    minimumPayment: 0,
+                    lastUpdated: new Date().toISOString()
                   });
                 }}
               >
@@ -238,8 +242,8 @@ export function CreditCardManagement() {
             <div className="p-4">
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <h3 className="text-lg font-semibold">{card.name}</h3>
-                  <p className="text-sm text-gray-500">{card.bank}</p>
+                  <h3 className="text-lg font-semibold">{card.cardName}</h3>
+                  <p className="text-sm text-gray-500">{card.bankName}</p>
                 </div>
                 <div className="flex space-x-2">
                   <Button onClick={() => handleEdit(card)} variant="secondary">
@@ -254,15 +258,15 @@ export function CreditCardManagement() {
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Credit Limit:</span>
-                  <span>{formatCurrency(card.limit)}</span>
+                  <span>{formatCurrency(card.creditLimit)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Current Balance:</span>
-                  <span>{formatCurrency(card.balance)}</span>
+                  <span>{formatCurrency(card.currentBalance)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Available Credit:</span>
-                  <span>{formatCurrency(card.limit - card.balance)}</span>
+                  <span>{formatCurrency(card.creditLimit - card.currentBalance)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">APR:</span>

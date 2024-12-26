@@ -10,7 +10,7 @@ interface CreditCardProfileProps {
 }
 
 export function CreditCardProfile({ card, transactions }: CreditCardProfileProps) {
-  const availableCredit = card.limit - card.balance;
+  const availableCredit = card.creditLimit - card.currentBalance;
 
   return (
     <Link to={`/credit-cards/${card.id}`}>
@@ -22,8 +22,8 @@ export function CreditCardProfile({ card, transactions }: CreditCardProfileProps
         <div className="relative">
           <div className="flex justify-between items-start mb-6">
             <div>
-              <h2 className="text-xl font-semibold">{card.name}</h2>
-              <p className="text-gray-600">{card.bank}</p>
+              <h2 className="text-xl font-semibold">{card.cardName}</h2>
+              <p className="text-gray-600">{card.bankName}</p>
             </div>
             <div className="text-right">
               <p className="text-sm font-medium text-gray-600">Cut-off Date</p>
@@ -34,7 +34,7 @@ export function CreditCardProfile({ card, transactions }: CreditCardProfileProps
           <div className="grid grid-cols-2 gap-6">
             <div>
               <p className="text-sm font-medium text-gray-600 mb-1">Current Balance</p>
-              <p className="text-2xl font-bold text-red-600">{formatCurrency(card.balance)}</p>
+              <p className="text-2xl font-bold text-red-600">{formatCurrency(card.currentBalance)}</p>
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600 mb-1">Available Credit</p>
@@ -45,7 +45,7 @@ export function CreditCardProfile({ card, transactions }: CreditCardProfileProps
           <div className="mt-4 pt-4 border-t border-gray-200">
             <div className="flex justify-between items-center">
               <p className="text-sm font-medium text-gray-600">Credit Limit</p>
-              <p className="text-lg font-semibold text-gray-800">{formatCurrency(card.limit)}</p>
+              <p className="text-lg font-semibold text-gray-800">{formatCurrency(card.creditLimit)}</p>
             </div>
           </div>
         </div>
