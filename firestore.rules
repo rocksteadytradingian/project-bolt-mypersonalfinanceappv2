@@ -9,43 +9,11 @@ service cloud.firestore {
     // User profile data
     match /users/{userId} {
       allow read, write: if isOwner(userId);
-      
-      // Subcollections for financial data
-      match /transactions/{transactionId} {
-        allow read, write: if isOwner(userId);
-      }
-      
-      match /fundSources/{sourceId} {
-        allow read, write: if isOwner(userId);
-      }
-      
-      match /creditCards/{cardId} {
-        allow read, write: if isOwner(userId);
-      }
-      
-      match /loans/{loanId} {
-        allow read, write: if isOwner(userId);
-      }
-      
-      match /debts/{debtId} {
-        allow read, write: if isOwner(userId);
-      }
-      
-      match /investments/{investmentId} {
-        allow read, write: if isOwner(userId);
-      }
-      
-      match /budgets/{budgetId} {
-        allow read, write: if isOwner(userId);
-      }
-      
-      match /recurringTransactions/{recurringId} {
-        allow read, write: if isOwner(userId);
-      }
-      
-      match /categories/{categoryId} {
-        allow read, write: if isOwner(userId);
-      }
+    }
+
+    // Financial records collection
+    match /financial_records/{userId} {
+      allow read, write: if isOwner(userId);
     }
   }
 }

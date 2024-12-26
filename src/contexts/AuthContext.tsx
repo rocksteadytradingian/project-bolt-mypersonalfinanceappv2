@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User } from 'firebase/auth';
-import { doc, writeBatch } from 'firebase/firestore';
+import { doc, writeBatch, collection } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import { getUserProfile, recoverUserProfile } from '../services/auth/authService';
 import { UserProfile, Theme } from '../types/finance';
@@ -86,20 +86,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           try {
             const batch = writeBatch(db);
             const profileRef = doc(db, 'users', user.uid);
-            const financialRef = doc(db, 'financial_records', user.uid);
-
             batch.set(profileRef, profile);
-            batch.set(financialRef, {
-              transactions: [],
-              creditCards: [],
-              fundSources: [],
-              loans: [],
-              debts: [],
-              investments: [],
-              budgets: [],
-              recurringTransactions: [],
-              categories: []
-            });
+
+            // Initialize subcollections with empty arrays
+            const collections = [
+              'transactions',
+              'creditCards',
+              'fundSources',
+              'loans',
+              'debts',
+              'investments',
+              'budgets',
+              'recurringTransactions',
+              'categories'
+            ];
+
+            for (const collectionName of collections) {
+              const placeholderRef = doc(collection(db, `users/${user.uid}/${collectionName}`), '_placeholder');
+              batch.set(placeholderRef, {
+                _isPlaceholder: true,
+                createdAt: new Date().toISOString()
+              });
+            }
 
             await batch.commit();
             batchCommitted = true;
