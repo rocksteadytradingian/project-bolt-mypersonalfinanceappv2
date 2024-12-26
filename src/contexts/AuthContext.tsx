@@ -62,7 +62,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // If still no profile after retries, create new one
       if (!profile) {
-        console.log('Creating new profile from Google data...');
+        console.log('Creating new profile from Google data...', {
+          userId: user.uid,
+          displayName: user.displayName,
+          email: user.email,
+          hasPhotoUrl: !!user.photoURL
+        });
+        
         const newProfile: UserProfile = {
           id: user.uid,
           userId: user.uid,
@@ -110,19 +116,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
 
             await batch.commit();
+            console.log('Successfully initialized user data:', {
+              userId: user.uid,
+              collections: collections,
+              attempt: retryCount + 1
+            });
             batchCommitted = true;
-          } catch (error) {
-            console.error(`Batch commit attempt ${retryCount + 1} failed:`, error);
+          } catch (error: any) {
+            console.error(`Batch commit attempt ${retryCount + 1} failed:`, {
+              error,
+              code: error.code || 'unknown',
+              message: error.message || 'Unknown error',
+              userId: user.uid,
+              attempt: retryCount + 1,
+              maxRetries
+            });
             retryCount++;
             if (retryCount < maxRetries) {
-              await new Promise(resolve => setTimeout(resolve, 1000));
+              const delay = Math.pow(2, retryCount) * 1000;
+              console.log(`Retrying in ${delay}ms...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
             }
           }
         }
 
-        if (!batchCommitted) {
-          throw new Error('Failed to initialize user data after multiple attempts');
-        }
+      if (!batchCommitted) {
+        const initError = new Error('Failed to initialize user data after multiple attempts');
+        console.error('Profile initialization failed:', {
+          error: initError,
+          userId: user.uid,
+          attempts: retryCount,
+          maxRetries
+        });
+        throw error;
+      }
       }
 
       setUserProfile(profile);
