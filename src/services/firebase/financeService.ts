@@ -156,10 +156,10 @@ export const getUserFinancialData = async (userId: string): Promise<UserFinancia
   }
 };
 
-export const updateUserFinancialData = async <T>(
+export const updateUserFinancialData = async <K extends keyof UserFinancialData>(
   userId: string,
-  collectionName: keyof UserFinancialData,
-  data: T[]
+  collectionName: K,
+  data: UserFinancialData[K]
 ) => {
   try {
     const batch = writeBatch(db);

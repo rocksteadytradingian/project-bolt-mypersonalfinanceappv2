@@ -74,34 +74,38 @@ const defaultCategories: Category[] = [
   { id: '10', name: 'Loan', type: 'debt', color: '#2196F3', icon: '🏦' }
 ];
 
-// Helper function to sync with Firebase
-const syncWithFirebase = async (userId: string | undefined, state: FinanceStore) => {
-  if (userId) {
+// Helper function to sync with Firebase with retry mechanism
+const syncWithFirebase = async (userId: string | undefined, state: FinanceStore, retries = 3) => {
+  if (!userId) return;
+
+  const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+  
+  for (let attempt = 0; attempt < retries; attempt++) {
     try {
-      const financialData: FinancialData = {
-        transactions: state.transactions,
-        creditCards: state.creditCards,
-        fundSources: state.fundSources,
-        loans: state.loans,
-        debts: state.debts,
-        investments: state.investments,
-        budgets: state.budgets,
-        recurringTransactions: state.recurringTransactions,
-        categories: state.categories
-      };
-      await updateUserFinancialData(userId, 'transactions', financialData.transactions);
-      await updateUserFinancialData(userId, 'fundSources', financialData.fundSources);
-      await updateUserFinancialData(userId, 'creditCards', financialData.creditCards);
-      await updateUserFinancialData(userId, 'loans', financialData.loans);
-      await updateUserFinancialData(userId, 'debts', financialData.debts);
-      await updateUserFinancialData(userId, 'investments', financialData.investments);
-      await updateUserFinancialData(userId, 'budgets', financialData.budgets);
-      await updateUserFinancialData(userId, 'recurringTransactions', financialData.recurringTransactions);
-      await updateUserFinancialData(userId, 'categories', financialData.categories);
+      // Sync each collection sequentially with proper typing
+      await Promise.all([
+        updateUserFinancialData(userId, 'transactions', state.transactions),
+        updateUserFinancialData(userId, 'fundSources', state.fundSources),
+        updateUserFinancialData(userId, 'creditCards', state.creditCards),
+        updateUserFinancialData(userId, 'loans', state.loans),
+        updateUserFinancialData(userId, 'debts', state.debts),
+        updateUserFinancialData(userId, 'investments', state.investments),
+        updateUserFinancialData(userId, 'budgets', state.budgets),
+        updateUserFinancialData(userId, 'recurringTransactions', state.recurringTransactions),
+        updateUserFinancialData(userId, 'categories', state.categories)
+      ]);
+      
+      console.log('Successfully synced with Firebase');
+      return;
     } catch (error) {
-      console.error('Error syncing with Firebase:', error);
+      console.error(`Error syncing with Firebase (attempt ${attempt + 1}/${retries}):`, error);
+      if (attempt < retries - 1) {
+        await delay(1000 * Math.pow(2, attempt)); // Exponential backoff
+      }
     }
   }
+  
+  console.error('Failed to sync with Firebase after all retries');
 };
 
 export const useFinanceStore = create<FinanceStore>()((set, get) => ({
@@ -121,7 +125,14 @@ export const useFinanceStore = create<FinanceStore>()((set, get) => ({
         userProfile: state.userProfile ? { ...state.userProfile, ...updates } : null
       })),
 
-      setFinancialData: (data) => set(data),
+      setFinancialData: (data) => {
+        // Only sync with Firebase if we have a user profile
+        const state = get();
+        set(data);
+        if (state.userProfile?.id) {
+          syncWithFirebase(state.userProfile.id, { ...state, ...data });
+        }
+      },
 
       addTransaction: (transaction) => {
         const newTransaction = { ...transaction, id: uuidv4() };
