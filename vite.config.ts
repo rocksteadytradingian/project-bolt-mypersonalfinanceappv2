@@ -11,7 +11,6 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
-    sourcemap: true,
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
@@ -46,15 +45,22 @@ export default defineConfig({
         assetFileNames: 'assets/[name]-[hash].[ext]'
       }
     },
-    // Optimize build performance
+    // Optimize build performance while preserving important logs
     target: 'esnext',
     minify: 'terser',
     terserOptions: {
       compress: {
-        drop_console: true,
-        drop_debugger: true
+        drop_console: false, // Keep console logs for debugging
+        drop_debugger: true,
+        pure_funcs: ['console.debug', 'console.trace'] // Only remove debug/trace logs
+      },
+      format: {
+        comments: false,
+        max_line_len: 120
       }
-    }
+    },
+    // Add source maps for better error tracking
+    sourcemap: 'hidden'
   },
   optimizeDeps: {
     include: ['react', 'react-dom', 'firebase/app', 'firebase/auth', 'firebase/firestore']
