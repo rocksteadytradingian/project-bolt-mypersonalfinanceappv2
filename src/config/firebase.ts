@@ -3,23 +3,25 @@ import { getAuth, Auth, GoogleAuthProvider, setPersistence, browserLocalPersiste
 import { getFirestore, Firestore, initializeFirestore, enableMultiTabIndexedDbPersistence } from 'firebase/firestore';
 import { connectFirestoreEmulator } from 'firebase/firestore';
 
-// Log environment variables (excluding actual values for security)
-console.log('Firebase Config Keys Present:', {
-  apiKey: !!import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: !!import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: !!import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: !!import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: !!import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: !!import.meta.env.VITE_FIREBASE_APP_ID
-});
-
-const firebaseConfig = {
+// Log actual environment variables for debugging
+console.log('Firebase Config:', {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID
+});
+
+// Use hardcoded config for now to debug
+const firebaseConfig = {
+  apiKey: "AIzaSyBvaPFLFgPkCyPuByFia-ghBtc27sP3P5E",
+  authDomain: "makemoneymove-b8afb.firebaseapp.com",
+  projectId: "makemoneymove-b8afb",
+  storageBucket: "makemoneymove-b8afb.firebasestorage.app",
+  messagingSenderId: "1037768554358",
+  appId: "1:1037768554358:web:922e4d1870a56db7c6ec57",
+  measurementId: "G-7NLTY084TG"
 } as const;
 
 // Verify required config values
