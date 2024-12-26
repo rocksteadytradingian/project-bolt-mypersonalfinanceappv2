@@ -78,7 +78,7 @@ const lastDocCache = new Map<string, DocumentSnapshot>();
 
 // Helper function to get collection reference
 const getCollectionRef = (userId: string, collectionName: keyof UserFinancialData) => {
-  return collection(db, `users/${userId}/${collectionName}`);
+  return collection(db, 'users', userId, collectionName);
 };
 
 // Get paginated data from a collection
@@ -90,17 +90,24 @@ const getPaginatedData = async <T>(
   const collectionRef = getCollectionRef(userId, collectionName);
   const lastDoc = lastDocCache.get(`${userId}_${collectionName}`);
   
-  const q = lastDoc
-    ? query(collectionRef, orderBy('timestamp', 'desc'), startAfter(lastDoc), limit(pageSize))
-    : query(collectionRef, orderBy('timestamp', 'desc'), limit(pageSize));
+    // First check if collection exists
+    const existenceCheck = await getDocs(query(collectionRef, limit(1)));
+    if (existenceCheck.empty) {
+      console.log(`No data found in ${collectionName} collection`);
+      return [];
+    }
 
-  const snapshot = await getDocs(q);
-  
-  if (!snapshot.empty) {
-    lastDocCache.set(`${userId}_${collectionName}`, snapshot.docs[snapshot.docs.length - 1]);
-  }
+    const q = lastDoc
+      ? query(collectionRef, orderBy('createdAt', 'desc'), startAfter(lastDoc), limit(pageSize))
+      : query(collectionRef, orderBy('createdAt', 'desc'), limit(pageSize));
 
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as T[];
+    const dataSnapshot = await getDocs(q);
+    
+    if (!dataSnapshot.empty) {
+      lastDocCache.set(`${userId}_${collectionName}`, dataSnapshot.docs[dataSnapshot.docs.length - 1]);
+    }
+
+  return dataSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as T[];
 };
 
 export const getUserFinancialData = async (userId: string): Promise<UserFinancialData> => {
@@ -162,7 +169,8 @@ export const updateUserFinancialData = async <T>(
         const docRef = doc(collectionRef);
         batch.set(docRef, {
           ...item,
-          timestamp: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
           userId
         });
       });
