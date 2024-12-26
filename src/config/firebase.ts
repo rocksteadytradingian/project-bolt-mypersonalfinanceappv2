@@ -38,50 +38,42 @@ if (missingKeys.length > 0) {
   throw new Error(`Missing required Firebase configuration keys: ${missingKeys.join(', ')}`);
 }
 
-let app: FirebaseApp;
-let auth: Auth;
-let db: Firestore;
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+console.log('Firebase initialized successfully');
 
-try {
-  // Initialize Firebase
-  app = initializeApp(firebaseConfig);
-  console.log('Firebase initialized successfully');
+// Get Auth instance
+const auth = getAuth(app);
 
-  // Get Auth instance and configure persistence
-  auth = getAuth(app);
-  setPersistence(auth, browserLocalPersistence)
-    .catch((error) => {
-      console.error('Error setting auth persistence:', error);
-    });
+// Set auth persistence
+setPersistence(auth, browserLocalPersistence).catch((error) => {
+  console.error('Auth persistence error:', error);
+});
 
-  // Configure Google Auth Provider
-  const googleProvider = new GoogleAuthProvider();
-  googleProvider.setCustomParameters({
-    prompt: 'select_account',
-    access_type: 'offline'
-  });
-  auth.useDeviceLanguage();
+// Configure Google Auth Provider
+const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({
+  prompt: 'select_account',
+  access_type: 'offline'
+});
+auth.useDeviceLanguage();
 
-  // Initialize Firestore with optimized settings
-  db = initializeFirestore(app, {
-    cacheSizeBytes: 1048576 * 50, // 50MB cache size
-    ignoreUndefinedProperties: true, // Improve write performance
-    experimentalForceLongPolling: true, // Ensure consistent connection
-  });
+// Initialize Firestore with optimized settings
+const db = initializeFirestore(app, {
+  cacheSizeBytes: 1048576 * 50, // 50MB cache size
+  ignoreUndefinedProperties: true, // Improve write performance
+});
 
-  // Enable offline persistence with optimized settings
-  enableMultiTabIndexedDbPersistence(db).catch((err) => {
-    if (err.code === 'failed-precondition') {
-      console.warn('Firestore persistence failed to enable: Multiple tabs open');
-    } else if (err.code === 'unimplemented') {
-      console.warn('Firestore persistence not supported in this browser');
-    }
-  });
-
-} catch (error) {
-  console.error('Error initializing Firebase:', error);
-  throw error;
-}
+// Enable offline persistence
+enableMultiTabIndexedDbPersistence(db).catch((err: any) => {
+  if (err.code === 'failed-precondition') {
+    console.warn('Multiple tabs open, persistence enabled in another tab');
+  } else if (err.code === 'unimplemented') {
+    console.warn('Persistence not supported by browser');
+  } else {
+    console.error('Persistence error:', err);
+  }
+});
 
 export { auth, db };
 export default app;

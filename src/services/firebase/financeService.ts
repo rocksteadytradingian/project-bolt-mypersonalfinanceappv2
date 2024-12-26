@@ -26,12 +26,39 @@ import {
 } from '../../types/finance';
 import { useFinanceStore } from '../../store/useFinanceStore';
 
-// Enable offline persistence
-enableIndexedDbPersistence(db).catch((err) => {
-  console.error('Error enabling offline persistence:', err);
-});
-
 const BATCH_SIZE = 500;
+
+// Initialize persistence with retry mechanism
+const initializePersistence = async (retries = 3) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      await enableIndexedDbPersistence(db);
+      console.log('IndexedDB persistence initialized successfully');
+      return;
+    } catch (err: any) {
+      if (err.code === 'failed-precondition') {
+        // Multiple tabs open, persistence can only be enabled in one tab at a time
+        console.warn('Persistence failed: Multiple tabs open');
+        return;
+      } else if (err.code === 'unimplemented') {
+        // The current browser doesn't support persistence
+        console.warn('Persistence not supported in this browser');
+        return;
+      }
+      
+      if (i === retries - 1) {
+        console.error('Failed to initialize persistence after retries:', err);
+      } else {
+        console.warn(`Persistence initialization attempt ${i + 1} failed, retrying...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+  }
+};
+
+// Initialize persistence
+initializePersistence();
+
 const PAGE_SIZE = 50;
 
 interface UserFinancialData {
@@ -153,9 +180,27 @@ export const updateUserFinancialData = async <T>(
 
 export const syncFinancialData = async (userId: string) => {
   try {
-    const data = await getUserFinancialData(userId);
-    const store = useFinanceStore.getState();
-    store.setFinancialData(data);
+    // Retry mechanism for data sync
+    let retries = 3;
+    let data = null;
+    
+    while (retries > 0 && !data) {
+      try {
+        data = await getUserFinancialData(userId);
+      } catch (error) {
+        retries--;
+        if (retries === 0) throw error;
+        console.warn(`Data sync attempt failed, retrying... (${retries} attempts left)`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    if (data) {
+      const store = useFinanceStore.getState();
+      store.setFinancialData(data);
+    } else {
+      throw new Error('Failed to sync financial data after retries');
+    }
   } catch (error) {
     console.error('Error syncing financial data:', error);
     // Initialize with empty data on error
