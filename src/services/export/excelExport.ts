@@ -80,10 +80,10 @@ export const exportFundSources = (sources: FundSource[]) => {
 
 export const exportCreditCards = (cards: CreditCard[]) => {
   const headers = [
-    'Name',
-    'Bank',
-    'Limit',
-    'Balance',
+    'Card Name',
+    'Bank Name',
+    'Credit Limit',
+    'Current Balance',
     'APR',
     'Due Date',
     'Cut-off Date',
@@ -91,10 +91,10 @@ export const exportCreditCards = (cards: CreditCard[]) => {
   ];
 
   const data = cards.map(c => [
-    c.name,
-    c.bank,
-    formatCurrency(c.limit),
-    formatCurrency(c.balance),
+    c.cardName,
+    c.bankName,
+    formatCurrency(c.creditLimit),
+    formatCurrency(c.currentBalance),
     `${c.apr}%`,
     formatDayOfMonth(c.dueDate),
     formatDayOfMonth(c.cutOffDate),

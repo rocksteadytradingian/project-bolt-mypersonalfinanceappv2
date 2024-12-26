@@ -41,7 +41,7 @@ export const handleTransaction = async (transaction: Transaction) => {
         // Increase credit card balance for expenses
         const updatedCard = {
           ...creditCard,
-          balance: creditCard.balance + transaction.amount,
+          currentBalance: creditCard.currentBalance + transaction.amount,
           transactions: [...creditCard.transactions, transaction],
           updatedAt: dateToString(new Date())
         };
@@ -50,7 +50,7 @@ export const handleTransaction = async (transaction: Transaction) => {
         // Decrease credit card balance for payments
         const updatedCard = {
           ...creditCard,
-          balance: creditCard.balance - transaction.amount,
+          currentBalance: creditCard.currentBalance - transaction.amount,
           transactions: [...creditCard.transactions, transaction],
           updatedAt: dateToString(new Date())
         };
