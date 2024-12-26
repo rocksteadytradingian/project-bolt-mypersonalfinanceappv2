@@ -58,22 +58,30 @@ googleProvider.setCustomParameters({
 });
 auth.useDeviceLanguage();
 
-// Initialize Firestore with optimized settings
+// Initialize Firestore with basic config first
 const db = initializeFirestore(app, {
   cacheSizeBytes: 1048576 * 50, // 50MB cache size
-  ignoreUndefinedProperties: true, // Improve write performance
+  ignoreUndefinedProperties: true,
 });
 
-// Enable offline persistence
-enableMultiTabIndexedDbPersistence(db).catch((err: any) => {
-  if (err.code === 'failed-precondition') {
-    console.warn('Multiple tabs open, persistence enabled in another tab');
-  } else if (err.code === 'unimplemented') {
-    console.warn('Persistence not supported by browser');
-  } else {
-    console.error('Persistence error:', err);
+// Try to enable persistence
+const initializePersistence = async () => {
+  try {
+    await enableMultiTabIndexedDbPersistence(db);
+    console.log('Multi-tab persistence enabled successfully');
+  } catch (err: any) {
+    if (err.code === 'failed-precondition') {
+      console.warn('Multiple tabs detected, persistence already enabled in another tab');
+    } else if (err.code === 'unimplemented') {
+      console.warn('Persistence not supported by browser');
+    } else {
+      console.error('Persistence initialization error:', err);
+    }
   }
-});
+};
+
+// Initialize persistence in the background
+initializePersistence().catch(console.error);
 
 export { auth, db };
 export default app;

@@ -97,17 +97,21 @@ const getPaginatedData = async <T>(
       return [];
     }
 
-    const q = lastDoc
-      ? query(collectionRef, orderBy('createdAt', 'desc'), startAfter(lastDoc), limit(pageSize))
-      : query(collectionRef, orderBy('createdAt', 'desc'), limit(pageSize));
+    // Don't use orderBy for initial data load to avoid index issues
+    const q = query(collectionRef, limit(pageSize));
 
     const dataSnapshot = await getDocs(q);
     
-    if (!dataSnapshot.empty) {
+    // Filter out placeholder documents
+    const docs = dataSnapshot.docs
+      .filter(doc => !doc.data()._isPlaceholder)
+      .map(doc => ({ id: doc.id, ...doc.data() })) as T[];
+
+    if (docs.length > 0) {
       lastDocCache.set(`${userId}_${collectionName}`, dataSnapshot.docs[dataSnapshot.docs.length - 1]);
     }
 
-  return dataSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as T[];
+    return docs;
 };
 
 export const getUserFinancialData = async (userId: string): Promise<UserFinancialData> => {
