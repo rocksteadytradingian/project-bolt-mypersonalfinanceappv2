@@ -23,9 +23,10 @@ service cloud.firestore {
       // Subcollections
       match /{collection}/{docId} {
         allow read: if isOwner(userId);
-        allow create: if isOwner(userId) && 
+        allow create: if (isOwner(userId) && 
                      (request.resource.data._isPlaceholder == true || 
-                      request.resource.data.userId == userId);
+                      request.resource.data.userId == userId)) ||
+                     (isCreatingProfile() && request.resource.data._isPlaceholder == true);
         allow update, delete: if isOwner(userId);
       }
     }
