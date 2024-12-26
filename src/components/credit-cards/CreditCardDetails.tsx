@@ -24,12 +24,12 @@ export function CreditCardDetails() {
     );
   }
 
-  const availableCredit = card.limit - card.balance;
+  const availableCredit = card.creditLimit - card.currentBalance;
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">{card.name}</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{card.cardName}</h1>
         <Link to="/credit-cards">
           <Button variant="secondary">Back to Credit Cards</Button>
         </Link>
@@ -38,7 +38,7 @@ export function CreditCardDetails() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <h3 className="text-lg font-medium text-gray-900 mb-2">Current Balance</h3>
-          <p className="text-3xl font-bold text-red-600">{formatCurrency(card.balance)}</p>
+          <p className="text-3xl font-bold text-red-600">{formatCurrency(card.currentBalance)}</p>
         </Card>
         <Card>
           <h3 className="text-lg font-medium text-gray-900 mb-2">Available Credit</h3>
@@ -57,11 +57,11 @@ export function CreditCardDetails() {
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <p className="font-medium text-gray-500">Bank</p>
-            <p className="text-gray-900">{card.bank}</p>
+            <p className="text-gray-900">{card.bankName}</p>
           </div>
           <div>
             <p className="font-medium text-gray-500">Credit Limit</p>
-            <p className="text-gray-900">{formatCurrency(card.limit)}</p>
+            <p className="text-gray-900">{formatCurrency(card.creditLimit)}</p>
           </div>
         </div>
       </Card>

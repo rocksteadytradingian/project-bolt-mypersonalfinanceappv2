@@ -27,17 +27,17 @@ export function CreditCardAnalysis() {
   const { creditCards, transactions } = useFinanceStore();
 
   const creditCardMetrics = useMemo(() => {
-    const totalLimit = creditCards.reduce((sum, card) => sum + card.limit, 0);
-    const totalBalance = creditCards.reduce((sum, card) => sum + card.balance, 0);
+    const totalLimit = creditCards.reduce((sum, card) => sum + card.creditLimit, 0);
+    const totalBalance = creditCards.reduce((sum, card) => sum + card.currentBalance, 0);
     const availableCredit = totalLimit - totalBalance;
     const utilizationRate = (totalBalance / totalLimit) * 100;
 
     // Calculate utilization by card
     const utilizationByCard = creditCards.map(card => ({
-      name: card.name,
-      balance: card.balance,
-      limit: card.limit,
-      utilization: (card.balance / card.limit) * 100,
+      name: card.cardName,
+      balance: card.currentBalance,
+      limit: card.creditLimit,
+      utilization: (card.currentBalance / card.creditLimit) * 100,
     })).sort((a, b) => b.utilization - a.utilization);
 
     // Get last 30 days of credit card transactions
@@ -55,7 +55,7 @@ export function CreditCardAnalysis() {
         if (card) {
           if (!acc[card.id]) {
             acc[card.id] = {
-              cardName: card.name,
+              cardName: card.cardName,
               total: 0,
               transactions: 0,
             };
