@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useFinanceStore } from '../store/useFinanceStore';
 import { Card } from './ui/Card';
 import { Button } from './ui/Button';
-import { Transaction, TransactionType, FundSource } from '../types/finance';
+import { Transaction, TransactionType, FundSource, CreditCard } from '../types/finance';
 import { TransactionPreview } from './TransactionPreview';
 import { TransactionList } from './TransactionList';
 
@@ -43,7 +43,7 @@ const incomeCategories = [
 ];
 
 export function TransactionForm({ transaction, onSubmit, onCancel }: TransactionFormProps) {
-  const { transactions, fundSources, updateFundSource, userProfile } = useFinanceStore();
+  const { transactions, fundSources, creditCards, updateFundSource, updateCreditCard, userProfile } = useFinanceStore();
   const [newCategory, setNewCategory] = useState('');
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   const [previewTransaction, setPreviewTransaction] = useState<Omit<Transaction, 'id'> | null>(null);
@@ -59,6 +59,8 @@ export function TransactionForm({ transaction, onSubmit, onCancel }: Transaction
     category: transaction?.category || '',
     details: transaction?.details || '',
     fundSourceId: transaction?.fundSourceId || '',
+    creditCardId: transaction?.creditCardId || '',
+    sourceType: transaction?.sourceType || '' as 'fund_source' | 'credit_card' | '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -91,9 +93,21 @@ export function TransactionForm({ transaction, onSubmit, onCancel }: Transaction
       newErrors.time = 'Time is required';
     }
 
-    // Validate fund source for ALL income transactions
+    // Validate source for income and expense transactions
     if (formData.type === 'income' && !formData.fundSourceId) {
-      newErrors.fundSource = 'Fund source is required for all income transactions';
+      newErrors.fundSource = 'Fund source is required for income transactions';
+    }
+
+    if (formData.type === 'expense' && !formData.sourceType) {
+      newErrors.sourceType = 'Please select a source type (Fund Source or Credit Card)';
+    }
+
+    if (formData.type === 'expense' && formData.sourceType === 'fund_source' && !formData.fundSourceId) {
+      newErrors.fundSource = 'Please select a fund source';
+    }
+
+    if (formData.type === 'expense' && formData.sourceType === 'credit_card' && !formData.creditCardId) {
+      newErrors.creditCard = 'Please select a credit card';
     }
 
     setErrors(newErrors);
@@ -134,7 +148,7 @@ export function TransactionForm({ transaction, onSubmit, onCancel }: Transaction
     };
 
     try {
-      // Update fund source balance for income transactions
+      // Handle income transactions
       if (formData.type === 'income' && formData.fundSourceId) {
         const fundSource = fundSources.find(fs => fs.id === formData.fundSourceId);
         if (fundSource) {
@@ -145,6 +159,33 @@ export function TransactionForm({ transaction, onSubmit, onCancel }: Transaction
             transactions: [...fundSource.transactions, { ...newTransaction, id: 'temp-id' }]
           };
           await updateFundSource(updatedFundSource);
+        }
+      }
+
+      // Handle expense transactions
+      if (formData.type === 'expense') {
+        if (formData.sourceType === 'fund_source' && formData.fundSourceId) {
+          const fundSource = fundSources.find(fs => fs.id === formData.fundSourceId);
+          if (fundSource) {
+            const updatedFundSource: FundSource = {
+              ...fundSource,
+              currentBalance: fundSource.currentBalance - formData.amount,
+              lastUpdated: new Date().toISOString(),
+              transactions: [...fundSource.transactions, { ...newTransaction, id: 'temp-id' }]
+            };
+            await updateFundSource(updatedFundSource);
+          }
+        } else if (formData.sourceType === 'credit_card' && formData.creditCardId) {
+          const creditCard = creditCards.find(cc => cc.id === formData.creditCardId);
+          if (creditCard) {
+            const updatedCreditCard: CreditCard = {
+              ...creditCard,
+              currentBalance: creditCard.currentBalance + formData.amount,
+              lastUpdated: new Date().toISOString(),
+              transactions: [...creditCard.transactions, { ...newTransaction, id: 'temp-id' }]
+            };
+            await updateCreditCard(updatedCreditCard);
+          }
         }
       }
 
@@ -159,12 +200,13 @@ export function TransactionForm({ transaction, onSubmit, onCancel }: Transaction
         category: '',
         details: '',
         fundSourceId: '',
+        creditCardId: '',
+        sourceType: '',
       });
       
       setPreviewTransaction(null);
     } catch (error) {
       console.error('Error adding transaction:', error);
-      // Show error to user
       setErrors(prev => ({
         ...prev,
         submit: 'Failed to add transaction. Please try again.'
@@ -224,7 +266,13 @@ export function TransactionForm({ transaction, onSubmit, onCancel }: Transaction
                 <button
                   key={type}
                   type="button"
-                  onClick={() => setFormData({ ...formData, type: type.toLowerCase().replace(' ', '_') as TransactionType })}
+                  onClick={() => setFormData({
+                    ...formData,
+                    type: type.toLowerCase().replace(' ', '_') as TransactionType,
+                    sourceType: '',
+                    fundSourceId: '',
+                    creditCardId: ''
+                  })}
                   className={`px-4 py-2 rounded-md ${
                     formData.type === type.toLowerCase().replace(' ', '_')
                       ? 'bg-primary text-white'
@@ -273,10 +321,45 @@ export function TransactionForm({ transaction, onSubmit, onCancel }: Transaction
             {errors.category && <p className="mt-1 text-sm text-red-600">{errors.category}</p>}
           </div>
 
-          {formData.type === 'income' && (
+          {/* Source Type Selection for Expenses */}
+          {formData.type === 'expense' && (
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Select Fund Source for Income
+                Select Source Type
+              </label>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, sourceType: 'fund_source' as const, creditCardId: '' })}
+                  className={`px-4 py-2 rounded-md ${
+                    formData.sourceType === 'fund_source'
+                      ? 'bg-primary text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Fund Source
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, sourceType: 'credit_card' as const, fundSourceId: '' })}
+                  className={`px-4 py-2 rounded-md ${
+                    formData.sourceType === 'credit_card'
+                      ? 'bg-primary text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Credit Card
+                </button>
+              </div>
+              {errors.sourceType && <p className="mt-1 text-sm text-red-600">{errors.sourceType}</p>}
+            </div>
+          )}
+
+          {/* Fund Source Selection */}
+          {((formData.type === 'income') || (formData.type === 'expense' && formData.sourceType === 'fund_source')) && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                {formData.type === 'income' ? 'Select Fund Source for Income' : 'Select Fund Source'}
               </label>
               <select
                 value={formData.fundSourceId}
@@ -287,11 +370,34 @@ export function TransactionForm({ transaction, onSubmit, onCancel }: Transaction
                 <option value="">Select a fund source</option>
                 {fundSources.map((source) => (
                   <option key={source.id} value={source.id}>
-                    {`${source.bankName} - ${source.accountName} (Balance: $${source.currentBalance.toFixed(2)})`}
+                    {`${source.bankName} - ${source.accountName} (Balance: ${userProfile?.currency || '$'}${source.currentBalance.toFixed(2)})`}
                   </option>
                 ))}
               </select>
               {errors.fundSource && <p className="mt-1 text-sm text-red-600">{errors.fundSource}</p>}
+            </div>
+          )}
+
+          {/* Credit Card Selection */}
+          {formData.type === 'expense' && formData.sourceType === 'credit_card' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Select Credit Card
+              </label>
+              <select
+                value={formData.creditCardId}
+                onChange={(e) => setFormData({ ...formData, creditCardId: e.target.value })}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                required
+              >
+                <option value="">Select a credit card</option>
+                {creditCards.map((card) => (
+                  <option key={card.id} value={card.id}>
+                    {`${card.bankName} - ${card.cardName} (Available: ${userProfile?.currency || '$'}${(card.creditLimit - card.currentBalance).toFixed(2)})`}
+                  </option>
+                ))}
+              </select>
+              {errors.creditCard && <p className="mt-1 text-sm text-red-600">{errors.creditCard}</p>}
             </div>
           )}
 

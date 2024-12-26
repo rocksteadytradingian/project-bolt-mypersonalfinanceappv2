@@ -66,7 +66,7 @@ export interface Transaction extends BaseModel {
   type: TransactionType;
   amount: number;
   date: string;
-  time: string;  // Added time field
+  time: string;
   category: string;
   details: string;
   from?: string;
@@ -78,17 +78,19 @@ export interface Transaction extends BaseModel {
   debtId?: string;
   recurringTransactionId?: string;
   lastProcessed?: string;
+  sourceType: 'fund_source' | 'credit_card' | '';
 }
 
 export interface CreditCard extends BaseModel {
-  name: string;
-  bank: string;
-  limit: number;
-  balance: number;
+  bankName: string;
+  cardName: string;
+  creditLimit: number;
+  currentBalance: number;
   apr: number;
   dueDate: number; // Day of month (1-31)
   cutOffDate: number; // Day of month (1-31)
   minimumPayment: number;
+  lastUpdated: string;
   transactions: Transaction[];
 }
 
