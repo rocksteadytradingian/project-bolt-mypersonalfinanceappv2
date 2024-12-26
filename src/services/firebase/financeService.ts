@@ -1,4 +1,17 @@
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { 
+  doc, 
+  setDoc, 
+  getDoc, 
+  collection, 
+  query, 
+  getDocs, 
+  writeBatch,
+  limit,
+  orderBy,
+  startAfter,
+  DocumentSnapshot,
+  enableIndexedDbPersistence
+} from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { 
   Transaction, 
@@ -13,6 +26,14 @@ import {
 } from '../../types/finance';
 import { useFinanceStore } from '../../store/useFinanceStore';
 
+// Enable offline persistence
+enableIndexedDbPersistence(db).catch((err) => {
+  console.error('Error enabling offline persistence:', err);
+});
+
+const BATCH_SIZE = 500;
+const PAGE_SIZE = 50;
+
 interface UserFinancialData {
   transactions: Transaction[];
   creditCards: CreditCard[];
@@ -25,173 +46,135 @@ interface UserFinancialData {
   categories: Category[];
 }
 
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000; // 1 second
+// Cache for last document snapshots (for pagination)
+const lastDocCache = new Map<string, DocumentSnapshot>();
 
-const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-export const getUserFinancialData = async (userId: string): Promise<UserFinancialData | null> => {
-  let retries = 0;
-  let lastError: Error | null = null;
-
-  while (retries < MAX_RETRIES) {
-    try {
-      const docRef = doc(db, `financial_records/${userId}`);
-      const docSnap = await getDoc(docRef);
-
-      if (docSnap.exists()) {
-        return docSnap.data() as UserFinancialData;
-      }
-
-      // If no data exists, create initial structure
-      const initialData: UserFinancialData = {
-        transactions: [],
-        creditCards: [],
-        fundSources: [],
-        loans: [],
-        debts: [],
-        investments: [],
-        budgets: [],
-        recurringTransactions: [],
-        categories: []
-      };
-
-      await setDoc(docRef, initialData);
-      return initialData;
-    } catch (error) {
-      console.error(`Error getting user financial data (attempt ${retries + 1}):`, error);
-      lastError = error as Error;
-      retries++;
-      if (retries < MAX_RETRIES) {
-        await wait(RETRY_DELAY * retries);
-      }
-    }
-  }
-
-  console.error('All attempts to get financial data failed:', lastError);
-  throw lastError;
+// Helper function to get collection reference
+const getCollectionRef = (userId: string, collectionName: keyof UserFinancialData) => {
+  return collection(db, `users/${userId}/${collectionName}`);
 };
 
-export const updateUserFinancialData = async (
+// Get paginated data from a collection
+const getPaginatedData = async <T>(
   userId: string,
-  collection: keyof UserFinancialData,
-  data: any
-) => {
-  let retries = 0;
-  let lastError: Error | null = null;
+  collectionName: keyof UserFinancialData,
+  pageSize: number = PAGE_SIZE
+): Promise<T[]> => {
+  const collectionRef = getCollectionRef(userId, collectionName);
+  const lastDoc = lastDocCache.get(`${userId}_${collectionName}`);
+  
+  const q = lastDoc
+    ? query(collectionRef, orderBy('timestamp', 'desc'), startAfter(lastDoc), limit(pageSize))
+    : query(collectionRef, orderBy('timestamp', 'desc'), limit(pageSize));
 
-  while (retries < MAX_RETRIES) {
-    try {
-      const docRef = doc(db, `financial_records/${userId}`);
-      const docSnap = await getDoc(docRef);
-      
-      // Get existing data or create initial structure
-      const existingData = docSnap.exists() 
-        ? docSnap.data() as UserFinancialData 
-        : {
-            transactions: [],
-            creditCards: [],
-            fundSources: [],
-            loans: [],
-            debts: [],
-            investments: [],
-            budgets: [],
-            recurringTransactions: [],
-            categories: []
-          };
-
-      // Update only the specified collection while preserving others
-      const updatedData = {
-        ...existingData,
-        [collection]: data
-      };
-
-      // Write back the complete data
-      await setDoc(docRef, updatedData);
-      return; // Success, exit the retry loop
-    } catch (error) {
-      console.error(`Error updating user financial data (attempt ${retries + 1}):`, error);
-      lastError = error as Error;
-      retries++;
-      if (retries < MAX_RETRIES) {
-        await wait(RETRY_DELAY * retries);
-      }
-    }
+  const snapshot = await getDocs(q);
+  
+  if (!snapshot.empty) {
+    lastDocCache.set(`${userId}_${collectionName}`, snapshot.docs[snapshot.docs.length - 1]);
   }
 
-  console.error('All update attempts failed:', lastError);
-  throw lastError;
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as T[];
+};
+
+export const getUserFinancialData = async (userId: string): Promise<UserFinancialData> => {
+  try {
+    // Get initial page of each collection type
+    const [
+      transactions,
+      creditCards,
+      fundSources,
+      loans,
+      debts,
+      investments,
+      budgets,
+      recurringTransactions,
+      categories
+    ] = await Promise.all([
+      getPaginatedData<Transaction>(userId, 'transactions'),
+      getPaginatedData<CreditCard>(userId, 'creditCards'),
+      getPaginatedData<FundSource>(userId, 'fundSources'),
+      getPaginatedData<Loan>(userId, 'loans'),
+      getPaginatedData<Debt>(userId, 'debts'),
+      getPaginatedData<Investment>(userId, 'investments'),
+      getPaginatedData<Budget>(userId, 'budgets'),
+      getPaginatedData<RecurringTransaction>(userId, 'recurringTransactions'),
+      getPaginatedData<Category>(userId, 'categories')
+    ]);
+
+    return {
+      transactions,
+      creditCards,
+      fundSources,
+      loans,
+      debts,
+      investments,
+      budgets,
+      recurringTransactions,
+      categories
+    };
+  } catch (error) {
+    console.error('Error getting user financial data:', error);
+    throw error;
+  }
+};
+
+export const updateUserFinancialData = async <T>(
+  userId: string,
+  collectionName: keyof UserFinancialData,
+  data: T[]
+) => {
+  try {
+    const batch = writeBatch(db);
+    const collectionRef = getCollectionRef(userId, collectionName);
+
+    // Process in batches to avoid write limits
+    for (let i = 0; i < data.length; i += BATCH_SIZE) {
+      const chunk = data.slice(i, i + BATCH_SIZE);
+      
+      chunk.forEach(item => {
+        const docRef = doc(collectionRef);
+        batch.set(docRef, {
+          ...item,
+          timestamp: new Date().toISOString(),
+          userId
+        });
+      });
+    }
+
+    await batch.commit();
+    
+    // Clear the cache for this collection to force fresh data on next fetch
+    lastDocCache.delete(`${userId}_${collectionName}`);
+  } catch (error) {
+    console.error(`Error updating ${collectionName}:`, error);
+    throw error;
+  }
 };
 
 export const syncFinancialData = async (userId: string) => {
-  let retries = 0;
-  let lastError: Error | null = null;
-
-  while (retries < MAX_RETRIES) {
-    try {
-      const docRef = doc(db, `financial_records/${userId}`);
-      const docSnap = await getDoc(docRef);
-      const store = useFinanceStore.getState();
-
-      if (docSnap.exists()) {
-        const data = docSnap.data() as UserFinancialData;
-        // Update store with Firebase data
-        store.setFinancialData({
-          transactions: data.transactions || [],
-          creditCards: data.creditCards || [],
-          fundSources: data.fundSources || [],
-          loans: data.loans || [],
-          debts: data.debts || [],
-          investments: data.investments || [],
-          budgets: data.budgets || [],
-          recurringTransactions: data.recurringTransactions || [],
-          categories: data.categories || []
-        });
-        return; // Success, exit the retry loop
-      } else {
-        // If document doesn't exist, create it with initial data
-        const initialData: UserFinancialData = {
-          transactions: [],
-          creditCards: [],
-          fundSources: [],
-          loans: [],
-          debts: [],
-          investments: [],
-          budgets: [],
-          recurringTransactions: [],
-          categories: []
-        };
-        await setDoc(docRef, initialData);
-        store.setFinancialData(initialData);
-        return; // Success, exit the retry loop
-      }
-    } catch (error) {
-      console.error(`Error syncing financial data (attempt ${retries + 1}):`, error);
-      lastError = error as Error;
-      retries++;
-      if (retries < MAX_RETRIES) {
-        await wait(RETRY_DELAY * retries); // Exponential backoff
-      }
-    }
+  try {
+    const data = await getUserFinancialData(userId);
+    const store = useFinanceStore.getState();
+    store.setFinancialData(data);
+  } catch (error) {
+    console.error('Error syncing financial data:', error);
+    // Initialize with empty data on error
+    const store = useFinanceStore.getState();
+    store.setFinancialData({
+      transactions: [],
+      creditCards: [],
+      fundSources: [],
+      loans: [],
+      debts: [],
+      investments: [],
+      budgets: [],
+      recurringTransactions: [],
+      categories: []
+    });
+    throw error;
   }
-
-  // If we get here, all retries failed
-  console.error('All sync attempts failed:', lastError);
-  const store = useFinanceStore.getState();
-  store.setFinancialData({
-    transactions: [],
-    creditCards: [],
-    fundSources: [],
-    loans: [],
-    debts: [],
-    investments: [],
-    budgets: [],
-    recurringTransactions: [],
-    categories: []
-  });
 };
 
-// Helper function to clear store data on sign out
 export const clearFinancialData = () => {
   const store = useFinanceStore.getState();
   store.setFinancialData({
@@ -205,4 +188,14 @@ export const clearFinancialData = () => {
     recurringTransactions: [],
     categories: []
   });
+  // Clear all pagination caches
+  lastDocCache.clear();
+};
+
+// Load more data for a specific collection
+export const loadMoreData = async <T>(
+  userId: string,
+  collectionName: keyof UserFinancialData
+): Promise<T[]> => {
+  return getPaginatedData<T>(userId, collectionName);
 };

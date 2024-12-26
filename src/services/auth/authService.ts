@@ -8,7 +8,17 @@ import {
   Auth,
   UserCredential
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, writeBatch, updateDoc } from 'firebase/firestore';
+import { 
+  doc, 
+  setDoc, 
+  getDoc, 
+  writeBatch, 
+  updateDoc,
+  collection,
+  getDocs,
+  query,
+  limit 
+} from 'firebase/firestore';
 import { auth, db } from '../../config/firebase';
 import { UserProfile } from '../../types/finance';
 import { dateToString } from '../../types/finance';
@@ -24,7 +34,7 @@ const logAuthError = (context: string, error: any) => {
   });
 };
 
-// Profile recovery mechanism
+// Profile recovery mechanism with subcollections verification
 export const recoverUserProfile = async (userId: string): Promise<UserProfile | null> => {
   try {
     const userDoc = await getDoc(doc(db, 'users', userId));
@@ -32,22 +42,38 @@ export const recoverUserProfile = async (userId: string): Promise<UserProfile | 
     if (userDoc.exists()) {
       const existingProfile = userDoc.data() as UserProfile;
       
-      // Attempt to recreate financial records if missing
-      const financialDoc = await getDoc(doc(db, 'financial_records', userId));
+      // Verify all required subcollections exist
+      const collections = [
+        'transactions',
+        'creditCards',
+        'fundSources',
+        'loans',
+        'debts',
+        'investments',
+        'budgets',
+        'recurringTransactions',
+        'categories'
+      ];
+
+      const batch = writeBatch(db);
       
-      if (!financialDoc.exists()) {
-        await setDoc(doc(db, 'financial_records', userId), {
-          transactions: [],
-          creditCards: [],
-          fundSources: [],
-          loans: [],
-          debts: [],
-          investments: [],
-          budgets: [],
-          recurringTransactions: [],
-          categories: []
-        });
-      }
+      // Check each subcollection and initialize if empty
+      await Promise.all(collections.map(async (collectionName) => {
+        const collectionRef = collection(db, `users/${userId}/${collectionName}`);
+        const q = query(collectionRef, limit(1));
+        const snapshot = await getDocs(q);
+        
+        if (snapshot.empty) {
+          // Add a placeholder document that will be removed on first real data
+          const placeholderDoc = doc(collectionRef, '_placeholder');
+          batch.set(placeholderDoc, {
+            _isPlaceholder: true,
+            createdAt: new Date().toISOString()
+          });
+        }
+      }));
+
+      await batch.commit();
       
       return existingProfile;
     }
@@ -102,18 +128,25 @@ const initializeUserData = async (user: User, profile: UserProfile) => {
   const profileRef = doc(db, 'users', user.uid);
   batch.set(profileRef, profile);
 
-  // Set financial records document
-  const financialRef = doc(db, 'financial_records', user.uid);
-  batch.set(financialRef, {
-    transactions: [],
-    creditCards: [],
-    fundSources: [],
-    loans: [],
-    debts: [],
-    investments: [],
-    budgets: [],
-    recurringTransactions: [],
-    categories: []
+  // Initialize subcollections with placeholder documents
+  const collections = [
+    'transactions',
+    'creditCards',
+    'fundSources',
+    'loans',
+    'debts',
+    'investments',
+    'budgets',
+    'recurringTransactions',
+    'categories'
+  ];
+
+  collections.forEach(collectionName => {
+    const placeholderDoc = doc(collection(db, `users/${user.uid}/${collectionName}`), '_placeholder');
+    batch.set(placeholderDoc, {
+      _isPlaceholder: true,
+      createdAt: new Date().toISOString()
+    });
   });
 
   // Commit the batch
@@ -123,14 +156,10 @@ const initializeUserData = async (user: User, profile: UserProfile) => {
   useFinanceStore.getState().setUserProfile(profile);
 };
 
-const getUserData = async (userId: string): Promise<{ profile: UserProfile | null, hasFinancialRecords: boolean }> => {
-  const [userDoc, financialDoc] = await Promise.all([
-    getDoc(doc(db, 'users', userId)),
-    getDoc(doc(db, 'financial_records', userId))
-  ]);
+const getUserData = async (userId: string): Promise<{ profile: UserProfile | null }> => {
+  const userDoc = await getDoc(doc(db, 'users', userId));
   return {
-    profile: userDoc.exists() ? (userDoc.data() as UserProfile) : null,
-    hasFinancialRecords: financialDoc.exists()
+    profile: userDoc.exists() ? (userDoc.data() as UserProfile) : null
   };
 };
 
@@ -154,6 +183,8 @@ export const signIn = async (email: string, password: string): Promise<User> => 
     const { profile } = await getUserData(userCredential.user.uid);
     
     if (profile) {
+      // Verify and recover profile data if needed
+      await recoverUserProfile(userCredential.user.uid);
       useFinanceStore.getState().setUserProfile(profile);
     }
     
