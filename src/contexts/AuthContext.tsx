@@ -165,12 +165,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [setStoreUserProfile]);
 
-  // Handle auth state changes with improved error handling
+  // Handle auth state changes with improved error handling and retry mechanism
   useEffect(() => {
     let mounted = true;
     let timeoutId: NodeJS.Timeout;
+    let retryCount = 0;
+    const maxRetries = 3;
 
-    const unsubscribe = auth.onAuthStateChanged(async (user: User | null) => {
+    const initializeAuth = async (user: User | null) => {
       if (!mounted) return;
 
       try {
@@ -182,36 +184,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUserProfile(null);
           setStoreUserProfile(null);
           await clearFinancialData();
-        } else {
-          await loadUserData(user);
+          return;
+        }
+
+        // Retry loading user data with exponential backoff
+        while (retryCount < maxRetries) {
+          try {
+            await loadUserData(user);
+            return; // Success, exit retry loop
+          } catch (error: any) {
+            retryCount++;
+            console.error(`Auth initialization attempt ${retryCount}/${maxRetries} failed:`, {
+              error,
+              code: error.code,
+              message: error.message,
+              userId: user.uid
+            });
+
+            if (retryCount === maxRetries) {
+              throw error; // Max retries reached, propagate error
+            }
+
+            // Exponential backoff
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+          }
         }
       } catch (error: any) {
-        console.error('Auth state change error:', {
+        console.error('Auth initialization error:', {
           error,
           code: error.code,
           message: error.message,
           state: { currentUser, userProfile }
         });
 
-        // Only clear data if we haven't loaded anything yet
-        if (!userProfile) {
-          setError('Failed to initialize application. Please try again.');
-          setCurrentUser(null);
-          setUserProfile(null);
-          setStoreUserProfile(null);
-          await clearFinancialData();
-        }
+        setError('Failed to load user data. Please try again.');
+        setCurrentUser(null);
+        setUserProfile(null);
+        setStoreUserProfile(null);
+        await clearFinancialData();
       } finally {
-        // Ensure loading states are always updated
-        setLoading(false);
-        // Add a small delay before setting initialLoading to false
-        timeoutId = setTimeout(() => {
-          if (mounted) {
-            setInitialLoading(false);
-          }
-        }, 500);
+        if (mounted) {
+          setLoading(false);
+          // Add a small delay before setting initialLoading to false
+          timeoutId = setTimeout(() => {
+            if (mounted) {
+              setInitialLoading(false);
+            }
+          }, 500);
+        }
       }
-    });
+    };
+
+    const unsubscribe = auth.onAuthStateChanged(initializeAuth);
 
     return () => {
       mounted = false;

@@ -222,40 +222,89 @@ export const signInWithGoogle = async (): Promise<{ user: User; isNewUser: boole
       prompt: 'select_account'
     });
     
-    const result = await firebaseSignInWithPopup(auth, provider);
-    const userDoc = await getDoc(doc(db, 'users', result.user.uid));
-    
+    // Add retry mechanism for sign in
+    let retryCount = 0;
+    const maxRetries = 3;
+    let result;
+
+    while (retryCount < maxRetries) {
+      try {
+        result = await firebaseSignInWithPopup(auth, provider);
+        break;
+      } catch (error: any) {
+        retryCount++;
+        console.error(`Sign in attempt ${retryCount}/${maxRetries} failed:`, error);
+        
+        if (error.code === 'auth/popup-closed-by-user') {
+          throw error; // Don't retry if user closed popup
+        }
+        
+        if (retryCount === maxRetries) {
+          throw error;
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+      }
+    }
+
+    if (!result) {
+      throw new Error('Failed to sign in after multiple attempts');
+    }
+
+    // Add retry mechanism for profile operations
+    retryCount = 0;
     let profile: UserProfile | null = null;
     let isNewUser = false;
 
-    if (!userDoc.exists()) {
-      // Create new profile
-      profile = createDefaultProfile(result.user);
-      await initializeUserData(result.user, profile);
-      isNewUser = true;
-    } else {
-      // Get existing profile and try to recover if needed
-      profile = await recoverUserProfile(result.user.uid);
-      
-      if (!profile) {
-        // If recovery failed, create new profile
-        profile = createDefaultProfile(result.user);
-        await initializeUserData(result.user, profile);
-        isNewUser = true;
-      } else {
-        // Update existing profile with latest Google data
-        const updatedProfile = {
-          ...profile,
-          name: result.user.displayName || profile.name,
-          email: result.user.email || profile.email,
-          photoUrl: result.user.photoURL || profile.photoUrl,
-          updatedAt: new Date().toISOString()
-        };
+    while (retryCount < maxRetries) {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', result.user.uid));
+
+        if (!userDoc.exists()) {
+          // Create new profile
+          profile = createDefaultProfile(result.user);
+          await initializeUserData(result.user, profile);
+          isNewUser = true;
+          break;
+        }
+
+        // Get existing profile and try to recover if needed
+        profile = await recoverUserProfile(result.user.uid);
         
-        await setDoc(doc(db, 'users', result.user.uid), updatedProfile, { merge: true });
-        useFinanceStore.getState().setUserProfile(updatedProfile);
-        profile = updatedProfile;
+        if (!profile) {
+          // If recovery failed, create new profile
+          profile = createDefaultProfile(result.user);
+          await initializeUserData(result.user, profile);
+          isNewUser = true;
+        } else {
+          // Update existing profile with latest Google data
+          const updatedProfile = {
+            ...profile,
+            name: result.user.displayName || profile.name,
+            email: result.user.email || profile.email,
+            photoUrl: result.user.photoURL || profile.photoUrl,
+            updatedAt: new Date().toISOString()
+          };
+          
+          await setDoc(doc(db, 'users', result.user.uid), updatedProfile, { merge: true });
+          useFinanceStore.getState().setUserProfile(updatedProfile);
+          profile = updatedProfile;
+        }
+        break;
+      } catch (error) {
+        retryCount++;
+        console.error(`Profile operation attempt ${retryCount}/${maxRetries} failed:`, error);
+        
+        if (retryCount === maxRetries) {
+          throw error;
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
       }
+    }
+
+    if (!profile) {
+      throw new Error('Failed to initialize user profile after multiple attempts');
     }
 
     return { user: result.user, isNewUser };
