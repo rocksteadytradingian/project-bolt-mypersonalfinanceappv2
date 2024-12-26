@@ -11,15 +11,13 @@ service cloud.firestore {
     }
 
     function isCreatingProfile() {
-      return isAuthenticated() && 
-             !exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             request.resource.data.userId == request.auth.uid;
+      return isAuthenticated() && request.resource.data.userId == request.auth.uid;
     }
 
     // User profile data
     match /users/{userId} {
       allow read: if isOwner(userId);
-      allow create: if isCreatingProfile() || isOwner(userId);
+      allow create: if isCreatingProfile();
       allow update, delete: if isOwner(userId);
       
       // Subcollections
