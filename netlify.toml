@@ -5,15 +5,16 @@
 [build.environment]
   NODE_VERSION = "18"
   VITE_APP_ENV = "production"
+  SITE_URL = "https://moneymovenow.site"
 
 [context.production.environment]
-  VITE_FIREBASE_API_KEY = "AIzaSyBvaPFLFgPkCyPuByFia-ghBtc27sP3P5E"
-  VITE_FIREBASE_AUTH_DOMAIN = "makemoneymove-b8afb.firebaseapp.com"
-  VITE_FIREBASE_PROJECT_ID = "makemoneymove-b8afb"
-  VITE_FIREBASE_STORAGE_BUCKET = "makemoneymove-b8afb.firebasestorage.app"
-  VITE_FIREBASE_MESSAGING_SENDER_ID = "1037768554358"
-  VITE_FIREBASE_APP_ID = "1:1037768554358:web:922e4d1870a56db7c6ec57"
-  VITE_FIREBASE_MEASUREMENT_ID = "G-7NLTY084TG"
+  VITE_FIREBASE_API_KEY = "AIzaSyD3fcvbYGwOTsJDbvko7c6bSu_QeFw_eyQ"
+  VITE_FIREBASE_AUTH_DOMAIN = "moneymovenow-62870.firebaseapp.com"
+  VITE_FIREBASE_PROJECT_ID = "moneymovenow-62870"
+  VITE_FIREBASE_STORAGE_BUCKET = "moneymovenow-62870.firebasestorage.app"
+  VITE_FIREBASE_MESSAGING_SENDER_ID = "471416228349"
+  VITE_FIREBASE_APP_ID = "1:471416228349:web:7654ba69328f78eaf0b194"
+  VITE_FIREBASE_MEASUREMENT_ID = "G-2YXQLSQNHR"
 
 [dev]
   command = "npm run dev"
@@ -21,7 +22,18 @@
   publish = "dist"
   autoLaunch = false
 
-# Handle SPA routing
+# Legal pages
+[[redirects]]
+  from = "/privacy-policy"
+  to = "/legal/privacy-policy.html"
+  status = 200
+
+[[redirects]]
+  from = "/terms-of-service"
+  to = "/legal/terms-of-service.html"
+  status = 200
+
+# Handle SPA routing (must be last)
 [[redirects]]
   from = "/*"
   to = "/index.html"
