@@ -123,46 +123,81 @@ const createDefaultProfile = (user: User): UserProfile => ({
   ...(user.photoURL && { photoUrl: user.photoURL })
 });
 
-const initializeUserData = async (user: User, profile: UserProfile) => {
-  const batch = writeBatch(db);
-  
-  // Set profile document
-  const profileRef = doc(db, 'users', user.uid);
-  batch.set(profileRef, profile);
+const initializeUserData = async (user: User, profile: UserProfile, maxRetries = 3) => {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const batch = writeBatch(db);
+      
+      // Set profile document
+      const profileRef = doc(db, 'users', user.uid);
+      batch.set(profileRef, profile);
 
-  // Initialize subcollections with placeholder documents
-  const collections = [
-    'transactions',
-    'creditCards',
-    'fundSources',
-    'loans',
-    'debts',
-    'investments',
-    'budgets',
-    'recurringTransactions',
-    'categories'
-  ];
+      // Initialize subcollections with placeholder documents
+      const collections = [
+        'transactions',
+        'creditCards',
+        'fundSources',
+        'loans',
+        'debts',
+        'investments',
+        'budgets',
+        'recurringTransactions',
+        'categories'
+      ];
 
-  collections.forEach(collectionName => {
-    const placeholderDoc = doc(collection(db, `users/${user.uid}/${collectionName}`), '_placeholder');
-    batch.set(placeholderDoc, {
-      _isPlaceholder: true,
-      createdAt: new Date().toISOString()
-    });
-  });
+      collections.forEach(collectionName => {
+        const placeholderDoc = doc(collection(db, `users/${user.uid}/${collectionName}`), '_placeholder');
+        batch.set(placeholderDoc, {
+          _isPlaceholder: true,
+          createdAt: new Date().toISOString()
+        });
+      });
 
-  // Commit the batch
-  await batch.commit();
-  
-  // Update the store
-  useFinanceStore.getState().setUserProfile(profile);
+      // Commit the batch
+      await batch.commit();
+      
+      // Update the store
+      useFinanceStore.getState().setUserProfile(profile);
+      console.log('User data initialized successfully');
+      return;
+    } catch (error: any) {
+      console.error(`Batch commit attempt ${attempt} failed:`, {
+        error,
+        code: error.code,
+        message: error.message,
+        userId: user.uid,
+        attempt
+      });
+      
+      if (attempt === maxRetries) {
+        throw new Error('Failed to initialize user data after multiple attempts');
+      }
+      
+      // Exponential backoff
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+    }
+  }
 };
 
-const getUserData = async (userId: string): Promise<{ profile: UserProfile | null }> => {
-  const userDoc = await getDoc(doc(db, 'users', userId));
-  return {
-    profile: userDoc.exists() ? (userDoc.data() as UserProfile) : null
-  };
+const getUserData = async (userId: string, maxRetries = 3): Promise<{ profile: UserProfile | null }> => {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      return {
+        profile: userDoc.exists() ? (userDoc.data() as UserProfile) : null
+      };
+    } catch (error: any) {
+      console.error(`Error getting user profile attempt ${attempt}:`, error);
+      
+      if (attempt === maxRetries) {
+        throw error;
+      }
+      
+      // Exponential backoff
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+    }
+  }
+  throw new Error('Failed to get user data after multiple attempts');
 };
 
 export const signUp = async (email: string, password: string): Promise<User> => {
