@@ -1,7 +1,15 @@
 import { initializeApp, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth, GoogleAuthProvider, setPersistence, browserLocalPersistence } from 'firebase/auth';
-import { getFirestore, Firestore, initializeFirestore, enableMultiTabIndexedDbPersistence } from 'firebase/firestore';
-import { connectFirestoreEmulator } from 'firebase/firestore';
+import { 
+  getFirestore, 
+  Firestore, 
+  initializeFirestore, 
+  enableMultiTabIndexedDbPersistence,
+  doc,
+  setDoc,
+  deleteDoc,
+  connectFirestoreEmulator
+} from 'firebase/firestore';
 
 // Log actual environment variables for debugging
 console.log('Firebase Config:', {
@@ -69,11 +77,23 @@ const initializeFirebaseApp = async (retries = 3) => {
 const initializeFirestoreDb = async (app: FirebaseApp, retries = 3) => {
   for (let i = 0; i < retries; i++) {
     try {
+      // Initialize with more robust settings
       const db = initializeFirestore(app, {
-        cacheSizeBytes: 1048576 * 50, // 50MB cache size
+        cacheSizeBytes: 1048576 * 100, // Increase cache size to 100MB
         ignoreUndefinedProperties: true,
-        experimentalForceLongPolling: true, // Add long polling for better reliability
+        experimentalForceLongPolling: true,
       });
+
+      // Verify database connection
+      try {
+        const testRef = doc(db, '_connection_test', 'test');
+        await setDoc(testRef, { timestamp: new Date().toISOString() });
+        await deleteDoc(testRef);
+        console.log('Firestore connection verified successfully');
+      } catch (error: any) {
+        throw new Error(`Firestore connection verification failed: ${error.message}`);
+      }
+
       console.log('Firestore initialized successfully');
       return db;
     } catch (error) {
@@ -146,10 +166,13 @@ const initializeFirestorePersistence = async (retries = 3) => {
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.addScope('email');
 googleProvider.addScope('profile');
+googleProvider.addScope('openid');
 googleProvider.setCustomParameters({
   prompt: 'select_account',
   login_hint: '',
-  display: 'popup'
+  display: 'popup',
+  access_type: 'offline', // Request a refresh token
+  include_granted_scopes: 'true'
 });
 auth.useDeviceLanguage();
 
