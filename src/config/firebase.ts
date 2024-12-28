@@ -11,11 +11,7 @@ import {
   Firestore, 
   initializeFirestore, 
   persistentLocalCache,
-  persistentMultipleTabManager,
-  doc,
-  setDoc,
-  deleteDoc,
-  connectFirestoreEmulator
+  persistentMultipleTabManager
 } from 'firebase/firestore';
 
 // Log actual environment variables for debugging
@@ -86,11 +82,9 @@ const initializeFirestoreDb = async (app: FirebaseApp, retries = 3) => {
     try {
       const db = initializeFirestore(app, {
         localCache: persistentLocalCache({
-          tabManager: persistentMultipleTabManager()
-        }),
-        cacheSizeBytes: 1048576 * 100, // 100MB cache size
-        ignoreUndefinedProperties: true,
-        experimentalForceLongPolling: true,
+          tabManager: persistentMultipleTabManager(),
+          cacheSizeBytes: 1048576 * 100 // 100MB cache size
+        })
       });
       console.log('Firestore initialized successfully');
       return db;
@@ -122,27 +116,6 @@ try {
   throw error;
 }
 
-// Configure auth persistence with retry mechanism
-const initializeAuthPersistence = async (retries = 3) => {
-  for (let i = 0; i < retries; i++) {
-    try {
-      await setPersistence(auth, browserLocalPersistence);
-      console.log('Auth persistence initialized successfully');
-      return;
-    } catch (error) {
-      console.error(`Auth persistence initialization attempt ${i + 1} failed:`, error);
-      if (i === retries - 1) throw error;
-      await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
-    }
-  }
-  throw new Error('Failed to initialize auth persistence after multiple attempts');
-};
-
-// Configure Firestore persistence with retry mechanism
-const initializeFirestorePersistence = () => {
-  console.log('Persistence configured through local cache settings');
-};
-
 // Configure Google Auth Provider with enhanced settings
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.addScope('email');
@@ -156,14 +129,6 @@ googleProvider.setCustomParameters({
   include_granted_scopes: 'true'
 });
 auth.useDeviceLanguage();
-
-// Initialize persistence in the background
-Promise.all([
-  initializeAuthPersistence(),
-  initializeFirestorePersistence()
-]).catch(error => {
-  console.error('Error initializing persistence:', error);
-});
 
 export { auth, db };
 export default app;
