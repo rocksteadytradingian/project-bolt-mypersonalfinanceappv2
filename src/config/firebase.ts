@@ -77,23 +77,11 @@ const initializeFirebaseApp = async (retries = 3) => {
 const initializeFirestoreDb = async (app: FirebaseApp, retries = 3) => {
   for (let i = 0; i < retries; i++) {
     try {
-      // Initialize with more robust settings
       const db = initializeFirestore(app, {
-        cacheSizeBytes: 1048576 * 100, // Increase cache size to 100MB
+        cacheSizeBytes: 1048576 * 100, // 100MB cache size
         ignoreUndefinedProperties: true,
         experimentalForceLongPolling: true,
       });
-
-      // Verify database connection
-      try {
-        const testRef = doc(db, '_connection_test', 'test');
-        await setDoc(testRef, { timestamp: new Date().toISOString() });
-        await deleteDoc(testRef);
-        console.log('Firestore connection verified successfully');
-      } catch (error: any) {
-        throw new Error(`Firestore connection verification failed: ${error.message}`);
-      }
-
       console.log('Firestore initialized successfully');
       return db;
     } catch (error) {
