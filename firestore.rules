@@ -10,22 +10,19 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    function isCreatingProfile() {
-      return request.auth != null;
+    // More permissive rules for initial setup
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow creating initial placeholder documents
+      match /{collection}/{docId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
-    // User profile data
-    match /users/{userId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if request.auth != null && request.auth.uid == userId;
-      
-      // Subcollections
-      match /{collection}/{docId} {
-        allow read: if request.auth != null && request.auth.uid == userId;
-        allow create: if request.auth != null && request.auth.uid == userId;
-        allow update, delete: if request.auth != null && request.auth.uid == userId;
-      }
+    // Allow authenticated users to read and write their own data
+    match /{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
     }
   }
 }
