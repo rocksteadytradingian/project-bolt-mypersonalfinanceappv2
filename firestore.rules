@@ -11,23 +11,20 @@ service cloud.firestore {
     }
 
     function isCreatingProfile() {
-      return isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      return request.auth != null;
     }
 
     // User profile data
     match /users/{userId} {
-      allow read: if isOwner(userId);
-      allow create: if isCreatingProfile();
-      allow update, delete: if isOwner(userId);
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if request.auth != null && request.auth.uid == userId;
       
       // Subcollections
       match /{collection}/{docId} {
-        allow read: if isOwner(userId);
-        allow create: if (isOwner(userId) && 
-                     (request.resource.data._isPlaceholder == true || 
-                      request.resource.data.userId == userId)) ||
-                     (isCreatingProfile() && request.resource.data._isPlaceholder == true);
-        allow update, delete: if isOwner(userId);
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null && request.auth.uid == userId;
+        allow update, delete: if request.auth != null && request.auth.uid == userId;
       }
     }
   }
