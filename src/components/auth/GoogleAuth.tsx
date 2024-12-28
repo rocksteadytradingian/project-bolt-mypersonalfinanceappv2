@@ -33,49 +33,58 @@ export function GoogleAuth() {
     setError('');
 
     try {
-      // Add delay before sign-in attempt to ensure Firebase is fully initialized
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Log Firebase auth state
-      console.log('Firebase Auth State:', {
-        initialized: !!auth,
-        currentUser: auth?.currentUser?.uid,
-        config: auth?.config,
-        name: auth?.name
+      // Log initial state
+      console.log('Starting Google Sign In:', {
+        timestamp: new Date().toISOString(),
+        environment: import.meta.env.MODE,
+        authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN
       });
 
+      // Attempt sign in with popup or redirect
       const result = await signInWithGoogle();
-      console.log('Google Sign In Result:', {
-        success: true,
-        isNewUser: result.isNewUser,
-        uid: result.user.uid
-      });
+      
+      if (result?.user) {
+        console.log('Google Sign In Success:', {
+          timestamp: new Date().toISOString(),
+          isNewUser: result.isNewUser,
+          uid: result.user.uid,
+          email: result.user.email?.split('@')[0] + '@...',
+          providerId: result.user.providerData[0]?.providerId
+        });
 
-      if (result.isNewUser) {
-        navigate('/profile/setup', { replace: true });
+        if (result.isNewUser) {
+          navigate('/profile/setup', { replace: true });
+        }
+        // If not a new user, navigation will be handled by the useEffect above
       }
-      // If not a new user, navigation will be handled by the useEffect above
+      
     } catch (error: any) {
+      // Enhanced error logging
       console.error('Google Sign In Error:', {
+        timestamp: new Date().toISOString(),
         code: error.code,
         message: error.message,
-        stack: error.stack
+        stack: error.stack,
+        context: {
+          environment: import.meta.env.MODE,
+          authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+          userAgent: navigator.userAgent
+        }
       });
 
-      // Handle specific error cases
-      if (error.code === 'auth/popup-closed-by-user') {
-        setError('Sign in was cancelled. Please try again.');
+      // Handle error cases
+      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+        // Don't show error for user-initiated cancellations
+        console.log('Sign in cancelled by user');
       } else if (error.code === 'auth/popup-blocked') {
-        setError('Sign in popup was blocked. Please allow popups for this site.');
-      } else if (error.code === 'auth/network-request-failed') {
-        setError('Network error. Please check your connection and try again.');
-      } else if (error.code === 'auth/internal-error') {
-        setError('An internal error occurred. Please wait a moment and try again.');
-      } else if (error.code === 'auth/timeout') {
-        setError('The request timed out. Please try again.');
+        console.log('Popup blocked, falling back to redirect...');
+        // The auth service will automatically try redirect
       } else {
-        setError(error.message || 'Failed to sign in with Google. Please try again.');
+        setError('Unable to complete sign in. Please try again.');
       }
+
+      // Log the error to the console for debugging
+      console.debug('Detailed error information:', error);
     } finally {
       setLoading(false);
     }

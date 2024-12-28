@@ -4,6 +4,8 @@ import {
   signOut as firebaseSignOut,
   GoogleAuthProvider,
   signInWithPopup as firebaseSignInWithPopup,
+  signInWithRedirect as firebaseSignInWithRedirect,
+  getRedirectResult,
   User,
   Auth,
   UserCredential
@@ -19,10 +21,10 @@ import {
   query,
   limit 
 } from 'firebase/firestore';
-import { auth, db } from '../../config/firebase';
 import { UserProfile } from '../../types/finance';
 import { dateToString } from '../../types/finance';
 import { useFinanceStore } from '../../store/useFinanceStore';
+import { auth, db, googleProvider } from '../../config/firebase';
 
 // Enhanced logging utility
 const logAuthError = (context: string, error: any) => {
@@ -217,100 +219,104 @@ export const signOutUser = async (): Promise<void> => {
 
 export const signInWithGoogle = async (): Promise<{ user: User; isNewUser: boolean }> => {
   try {
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({
-      prompt: 'select_account'
+    // Log initial state
+    console.log('Initiating Google Sign In:', {
+      timestamp: new Date().toISOString(),
+      environment: import.meta.env.MODE,
+      authDomain: auth.config?.authDomain
     });
-    
-    // Add retry mechanism for sign in
-    let retryCount = 0;
-    const maxRetries = 3;
-    let result;
 
-    while (retryCount < maxRetries) {
-      try {
-        result = await firebaseSignInWithPopup(auth, provider);
-        break;
-      } catch (error: any) {
-        retryCount++;
-        console.error(`Sign in attempt ${retryCount}/${maxRetries} failed:`, error);
-        
-        if (error.code === 'auth/popup-closed-by-user') {
-          throw error; // Don't retry if user closed popup
-        }
-        
-        if (retryCount === maxRetries) {
-          throw error;
-        }
-        
-        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+    // First try to get redirect result
+    try {
+      const redirectResult = await getRedirectResult(auth);
+      if (redirectResult) {
+        console.log('Got redirect result:', {
+          user: redirectResult.user.uid,
+          providerId: redirectResult.providerId
+        });
+        return handleAuthResult(redirectResult);
       }
+    } catch (redirectError) {
+      console.warn('No redirect result:', redirectError);
     }
 
-    if (!result) {
-      throw new Error('Failed to sign in after multiple attempts');
+    // Try popup first
+    try {
+      console.log('Attempting popup sign in...');
+      const popupResult = await firebaseSignInWithPopup(auth, googleProvider);
+      console.log('Popup sign in successful');
+      return handleAuthResult(popupResult);
+    } catch (popupError: any) {
+      console.warn('Popup sign in failed:', popupError);
+      
+      // If popup fails, try redirect
+      if (
+        popupError.code === 'auth/popup-blocked' ||
+        popupError.code === 'auth/popup-closed-by-user' ||
+        popupError.code === 'auth/cancelled-popup-request'
+      ) {
+        console.log('Falling back to redirect sign in...');
+        await firebaseSignInWithRedirect(auth, googleProvider);
+        // The page will reload and we'll handle the result above
+        return { user: null as any, isNewUser: false }; // This won't actually be returned
+      }
+      
+      throw popupError;
     }
+  } catch (error: any) {
+    console.error('Google sign in error:', {
+      code: error.code,
+      message: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
+    throw new Error(getAuthErrorMessage(error.code));
+  }
+};
 
-    // Add retry mechanism for profile operations
-    retryCount = 0;
+const handleAuthResult = async (result: UserCredential): Promise<{ user: User; isNewUser: boolean }> => {
+  try {
+
+    console.log('Processing user profile...');
+    const userDoc = await getDoc(doc(db, 'users', result.user.uid));
     let profile: UserProfile | null = null;
     let isNewUser = false;
 
-    while (retryCount < maxRetries) {
-      try {
-        const userDoc = await getDoc(doc(db, 'users', result.user.uid));
-
-        if (!userDoc.exists()) {
-          // Create new profile
-          profile = createDefaultProfile(result.user);
-          await initializeUserData(result.user, profile);
-          isNewUser = true;
-          break;
-        }
-
-        // Get existing profile and try to recover if needed
-        profile = await recoverUserProfile(result.user.uid);
+    if (!userDoc.exists()) {
+      console.log('Creating new user profile...');
+      profile = createDefaultProfile(result.user);
+      await initializeUserData(result.user, profile);
+      isNewUser = true;
+    } else {
+      console.log('Retrieving existing profile...');
+      profile = await recoverUserProfile(result.user.uid);
+      
+      if (!profile) {
+        console.log('Profile recovery failed, creating new profile...');
+        profile = createDefaultProfile(result.user);
+        await initializeUserData(result.user, profile);
+        isNewUser = true;
+      } else {
+        console.log('Updating existing profile...');
+        const updatedProfile = {
+          ...profile,
+          name: result.user.displayName || profile.name,
+          email: result.user.email || profile.email,
+          photoUrl: result.user.photoURL || profile.photoUrl,
+          updatedAt: new Date().toISOString()
+        };
         
-        if (!profile) {
-          // If recovery failed, create new profile
-          profile = createDefaultProfile(result.user);
-          await initializeUserData(result.user, profile);
-          isNewUser = true;
-        } else {
-          // Update existing profile with latest Google data
-          const updatedProfile = {
-            ...profile,
-            name: result.user.displayName || profile.name,
-            email: result.user.email || profile.email,
-            photoUrl: result.user.photoURL || profile.photoUrl,
-            updatedAt: new Date().toISOString()
-          };
-          
-          await setDoc(doc(db, 'users', result.user.uid), updatedProfile, { merge: true });
-          useFinanceStore.getState().setUserProfile(updatedProfile);
-          profile = updatedProfile;
-        }
-        break;
-      } catch (error) {
-        retryCount++;
-        console.error(`Profile operation attempt ${retryCount}/${maxRetries} failed:`, error);
-        
-        if (retryCount === maxRetries) {
-          throw error;
-        }
-        
-        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+        await setDoc(doc(db, 'users', result.user.uid), updatedProfile, { merge: true });
+        useFinanceStore.getState().setUserProfile(updatedProfile);
+        profile = updatedProfile;
       }
     }
 
-    if (!profile) {
-      throw new Error('Failed to initialize user profile after multiple attempts');
-    }
-
+    console.log('Sign in process completed successfully');
     return { user: result.user, isNewUser };
   } catch (error: any) {
-    console.error('Error initiating Google sign in:', error);
-    throw new Error(getAuthErrorMessage(error.code));
+    console.error('Error handling auth result:', error);
+    throw error;
   }
 };
 

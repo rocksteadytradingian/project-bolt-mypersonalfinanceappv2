@@ -13,15 +13,14 @@ console.log('Firebase Config:', {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 });
 
-// Use hardcoded config for now to debug
 const firebaseConfig = {
-  apiKey: "AIzaSyBvaPFLFgPkCyPuByFia-ghBtc27sP3P5E",
-  authDomain: "makemoneymove-b8afb.firebaseapp.com",
-  projectId: "makemoneymove-b8afb",
-  storageBucket: "makemoneymove-b8afb.firebasestorage.app",
-  messagingSenderId: "1037768554358",
-  appId: "1:1037768554358:web:922e4d1870a56db7c6ec57",
-  measurementId: "G-7NLTY084TG"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 } as const;
 
 // Verify required config values
@@ -40,7 +39,17 @@ if (missingKeys.length > 0) {
   throw new Error(`Missing required Firebase configuration keys: ${missingKeys.join(', ')}`);
 }
 
-// Initialize Firebase with retry mechanism
+// Enhanced error logging
+const logFirebaseError = (context: string, error: any) => {
+  console.error(`[Firebase Error - ${context}]`, {
+    code: error.code,
+    message: error.message,
+    stack: error.stack,
+    timestamp: new Date().toISOString()
+  });
+};
+
+// Initialize Firebase with retry mechanism and enhanced error handling
 const initializeFirebaseApp = async (retries = 3) => {
   for (let i = 0; i < retries; i++) {
     try {
@@ -48,7 +57,7 @@ const initializeFirebaseApp = async (retries = 3) => {
       console.log('Firebase app initialized successfully');
       return app;
     } catch (error) {
-      console.error(`Firebase app initialization attempt ${i + 1} failed:`, error);
+      logFirebaseError(`App Initialization Attempt ${i + 1}`, error);
       if (i === retries - 1) throw error;
       await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
     }
@@ -56,18 +65,19 @@ const initializeFirebaseApp = async (retries = 3) => {
   throw new Error('Failed to initialize Firebase app after multiple attempts');
 };
 
-// Initialize Firestore with retry mechanism
+// Initialize Firestore with retry mechanism and enhanced error handling
 const initializeFirestoreDb = async (app: FirebaseApp, retries = 3) => {
   for (let i = 0; i < retries; i++) {
     try {
       const db = initializeFirestore(app, {
         cacheSizeBytes: 1048576 * 50, // 50MB cache size
         ignoreUndefinedProperties: true,
+        experimentalForceLongPolling: true, // Add long polling for better reliability
       });
       console.log('Firestore initialized successfully');
       return db;
     } catch (error) {
-      console.error(`Firestore initialization attempt ${i + 1} failed:`, error);
+      logFirebaseError(`Firestore Initialization Attempt ${i + 1}`, error);
       if (i === retries - 1) throw error;
       await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
     }
@@ -75,10 +85,24 @@ const initializeFirestoreDb = async (app: FirebaseApp, retries = 3) => {
   throw new Error('Failed to initialize Firestore after multiple attempts');
 };
 
-// Initialize Firebase services
-const app = await initializeFirebaseApp();
-const db = await initializeFirestoreDb(app);
-const auth = getAuth(app);
+// Initialize Firebase services with enhanced error handling
+let app: FirebaseApp;
+let db: Firestore;
+let auth: Auth;
+
+try {
+  app = await initializeFirebaseApp();
+  db = await initializeFirestoreDb(app);
+  auth = getAuth(app);
+  
+  // Configure auth settings
+  auth.useDeviceLanguage();
+  await setPersistence(auth, browserLocalPersistence);
+  console.log('Firebase Auth configured successfully');
+} catch (error) {
+  logFirebaseError('Firebase Services Initialization', error);
+  throw error;
+}
 
 // Configure auth persistence with retry mechanism
 const initializeAuthPersistence = async (retries = 3) => {
@@ -118,11 +142,14 @@ const initializeFirestorePersistence = async (retries = 3) => {
   }
 };
 
-// Configure Google Auth Provider
-const googleProvider = new GoogleAuthProvider();
+// Configure Google Auth Provider with enhanced settings
+export const googleProvider = new GoogleAuthProvider();
+googleProvider.addScope('email');
+googleProvider.addScope('profile');
 googleProvider.setCustomParameters({
   prompt: 'select_account',
-  access_type: 'offline'
+  login_hint: '',
+  display: 'popup'
 });
 auth.useDeviceLanguage();
 
