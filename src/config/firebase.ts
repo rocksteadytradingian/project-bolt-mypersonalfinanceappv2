@@ -1,10 +1,17 @@
 import { initializeApp, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth, GoogleAuthProvider, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { 
+  getAuth, 
+  Auth, 
+  GoogleAuthProvider, 
+  setPersistence, 
+  browserLocalPersistence 
+} from 'firebase/auth';
 import { 
   getFirestore, 
   Firestore, 
   initializeFirestore, 
-  enableMultiTabIndexedDbPersistence,
+  persistentLocalCache,
+  persistentMultipleTabManager,
   doc,
   setDoc,
   deleteDoc,
@@ -78,6 +85,9 @@ const initializeFirestoreDb = async (app: FirebaseApp, retries = 3) => {
   for (let i = 0; i < retries; i++) {
     try {
       const db = initializeFirestore(app, {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager()
+        }),
         cacheSizeBytes: 1048576 * 100, // 100MB cache size
         ignoreUndefinedProperties: true,
         experimentalForceLongPolling: true,
@@ -129,25 +139,8 @@ const initializeAuthPersistence = async (retries = 3) => {
 };
 
 // Configure Firestore persistence with retry mechanism
-const initializeFirestorePersistence = async (retries = 3) => {
-  for (let i = 0; i < retries; i++) {
-    try {
-      await enableMultiTabIndexedDbPersistence(db);
-      console.log('Multi-tab persistence enabled successfully');
-      return;
-    } catch (err: any) {
-      if (err.code === 'failed-precondition') {
-        console.warn('Multiple tabs detected, persistence already enabled in another tab');
-        return;
-      } else if (err.code === 'unimplemented') {
-        console.warn('Persistence not supported by browser');
-        return;
-      }
-      console.error(`Persistence initialization attempt ${i + 1} failed:`, err);
-      if (i === retries - 1) throw err;
-      await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
-    }
-  }
+const initializeFirestorePersistence = () => {
+  console.log('Persistence configured through local cache settings');
 };
 
 // Configure Google Auth Provider with enhanced settings
